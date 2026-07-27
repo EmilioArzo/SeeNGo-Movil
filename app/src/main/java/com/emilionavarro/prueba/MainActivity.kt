@@ -19,8 +19,7 @@ import com.emilionavarro.prueba.senas.GesturesScreen
 import com.emilionavarro.prueba.sugerencias.SuggestionsScreen
 import com.emilionavarro.seengo.inicio.HomeScreen
 
-import android.os.Bundle
-import androidx.activity.ComponentActivity
+
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.Composable
@@ -29,7 +28,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.navigation.NavHostController
+
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -41,6 +40,47 @@ import com.emilionavarro.prueba.inicio.HomeScreenSkeleton
 import com.emilionavarro.prueba.inicio.ProfileScreenSkeleton
 import com.emilionavarro.prueba.inicio.SuggestionsScreenSkeleton
 import kotlinx.coroutines.delay
+
+
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.*
+import androidx.compose.ui.platform.LocalContext
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import com.emilionavarro.prueba.autenticacion.data.local.SessionManager
+import com.emilionavarro.prueba.senas.ConfigureGestureScreen
+import com.emilionavarro.prueba.senas.GestureDetailScreen
+import com.emilionavarro.prueba.senas.GestureSavedScreen
+import com.emilionavarro.prueba.sugerencias.RoutineActivatedScreen
+import com.emilionavarro.prueba.sugerencias.RoutineDetailScreen
+
+
+
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.*
+import androidx.compose.ui.platform.LocalContext
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import com.emilionavarro.prueba.perfil.HomeRoom
+
+
+
+
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.*
+import androidx.compose.ui.platform.LocalContext
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -55,43 +95,74 @@ class MainActivity : ComponentActivity() {
 
 // ── Rutas ─────────────────────────────────────────────────────────────────────
 object Routes {
-    const val SPLASH           = "splash"
-    const val LOGIN            = "login"
-    const val REGISTER         = "register"
-    const val FORGOT_PASSWORD  = "forgot_password"
-    const val NEW_PASSWORD     = "new_password"
+    // Auth
+    const val SPLASH            = "splash"
+    const val LOGIN             = "login"
+    const val REGISTER          = "register"
+    const val FORGOT_PASSWORD   = "forgot_password"
+    const val NEW_PASSWORD      = "new_password"
 
-    const val HOME             = "home"
-    const val GESTURES         = "gestures"
-    const val DEVICES          = "devices"
-    const val SUGGESTIONS      = "suggestions"
-    const val PROFILE          = "profile"
+    // Main tabs
+    const val HOME              = "home"
+    const val GESTURES          = "gestures"
+    const val DEVICES           = "devices"
+    const val SUGGESTIONS       = "suggestions"
+    const val PROFILE           = "profile"
 
-    const val DEVICE_DETAIL    = "device_detail"
-    const val SCAN_NETWORK     = "scan_network"
-    const val FOUND_DEVICES    = "found_devices"
-    const val CONFIGURE_DEVICE = "configure_device"
-    const val DEVICE_SUCCESS   = "device_success"
+    // Device flow
+    const val DEVICE_DETAIL     = "device_detail/{deviceId}"
+    const val SCAN_NETWORK      = "scan_network"
+    const val FOUND_DEVICES     = "found_devices/{scanId}"
+    const val CONFIGURE_DEVICE  = "configure_device/{scanId}"
+    const val DEVICE_SUCCESS    = "device_success/{deviceId}"
 
-    const val EDIT_PROFILE     = "edit_profile"
-    const val SETTINGS         = "settings"
-    const val PREFERENCES      = "preferences"
+    // Gesture flow
+    const val GESTURE_DETAIL    = "gesture_detail/{gestureId}"
+    const val CONFIGURE_GESTURE = "configure_gesture/{gestureId}"
+    const val GESTURE_SAVED     = "gesture_saved/{gestureId}"
+
+    // Profile flow
+    const val EDIT_PROFILE      = "edit_profile"
+    const val SETTINGS          = "settings"
+    const val PREFERENCES       = "preferences"
+
+    // Suggestions flow
+    const val ROUTINE_DETAIL    = "routine_detail/{routineId}"
+    const val ROUTINE_ACTIVATED = "routine_activated/{routineId}"
+
+    // Helpers to build routes with args
+    fun deviceDetail(deviceId: String)        = "device_detail/$deviceId"
+    fun foundDevices(scanId: String)          = "found_devices/$scanId"
+    fun configureDevice(scanId: String)       = "configure_device/$scanId"
+    fun deviceSuccess(deviceId: String)       = "device_success/$deviceId"
+    fun gestureDetail(gestureId: String)      = "gesture_detail/$gestureId"
+    fun configureGesture(gestureId: String)   = "configure_gesture/$gestureId"
+    fun gestureSaved(gestureId: String)       = "gesture_saved/$gestureId"
+    fun routineDetail(routineId: String)      = "routine_detail/$routineId"
+    fun routineActivated(routineId: String)   = "routine_activated/$routineId"
 }
 
 // ── NavHost ───────────────────────────────────────────────────────────────────
 @Composable
 fun AppNavHost(navController: NavHostController) {
+    val context = LocalContext.current
+    val session = remember { SessionManager(context) }
+
+    // Decide start destination: if already logged in skip auth
+    val startDest = if (session.isLoggedIn()) Routes.HOME else Routes.SPLASH
+
     NavHost(
         navController    = navController,
-        startDestination = Routes.SPLASH
+        startDestination = startDest
     ) {
 
-        // ── Auth ──────────────────────────────────────────────────────────
+        // ══ AUTH ════════════════════════════════════════════════════════════
 
         composable(Routes.SPLASH) {
             SplashScreen(
                 onSplashComplete = {
-                    navController.navigate(Routes.LOGIN) {
+                    val dest = if (session.isLoggedIn()) Routes.HOME else Routes.LOGIN
+                    navController.navigate(dest) {
                         popUpTo(Routes.SPLASH) { inclusive = true }
                     }
                 }
@@ -99,42 +170,21 @@ fun AppNavHost(navController: NavHostController) {
         }
 
         composable(Routes.LOGIN) {
-            var ready by remember { mutableStateOf(false) }
-            LaunchedEffect(Unit) {
-                delay(300) // tiempo mínimo para evitar flash
-                ready = true
-            }
-            if (!ready) GenericDetailSkeleton()
-            else
+            // LoginScreen uses its own SessionManager + LoginViewModel internally
             LoginScreen(
                 onLogin = {
                     navController.navigate(Routes.HOME) {
                         popUpTo(Routes.LOGIN) { inclusive = true }
                     }
                 },
-                onGoogleLogin = {
-                    navController.navigate(Routes.HOME) {
-                        popUpTo(Routes.LOGIN) { inclusive = true }
-                    }
-                },
-                onAppleLogin = {
-                    navController.navigate(Routes.HOME) {
-                        popUpTo(Routes.LOGIN) { inclusive = true }
-                    }
-                },
+                onGoogleLogin   = { /* TODO: Google OAuth */ },
+                onAppleLogin    = { /* TODO: Apple OAuth */ },
                 onForgotPassword = { navController.navigate(Routes.FORGOT_PASSWORD) },
                 onCreateAccount  = { navController.navigate(Routes.REGISTER) }
             )
         }
 
         composable(Routes.REGISTER) {
-            var ready by remember { mutableStateOf(false) }
-            LaunchedEffect(Unit) {
-                delay(300) // tiempo mínimo para evitar flash
-                ready = true
-            }
-            if (!ready) GenericDetailSkeleton()
-            else
             RegisterScreen(
                 onBack          = { navController.popBackStack() },
                 onCreateAccount = {
@@ -147,13 +197,6 @@ fun AppNavHost(navController: NavHostController) {
         }
 
         composable(Routes.FORGOT_PASSWORD) {
-            var ready by remember { mutableStateOf(false) }
-            LaunchedEffect(Unit) {
-                delay(300) // tiempo mínimo para evitar flash
-                ready = true
-            }
-            if (!ready) GenericDetailSkeleton()
-            else
             ForgotPasswordScreen(
                 onBack = { navController.popBackStack() },
                 onSend = { navController.navigate(Routes.NEW_PASSWORD) }
@@ -161,13 +204,6 @@ fun AppNavHost(navController: NavHostController) {
         }
 
         composable(Routes.NEW_PASSWORD) {
-            var ready by remember { mutableStateOf(false) }
-            LaunchedEffect(Unit) {
-                delay(300) // tiempo mínimo para evitar flash
-                ready = true
-            }
-            if (!ready) GenericDetailSkeleton()
-            else
             NewPasswordScreen(
                 onBack   = { navController.popBackStack() },
                 onSubmit = {
@@ -178,38 +214,36 @@ fun AppNavHost(navController: NavHostController) {
             )
         }
 
-        // ── Main tabs ─────────────────────────────────────────────────────
+        // ══ MAIN TABS ════════════════════════════════════════════════════════
 
         composable(Routes.HOME) {
-            var ready by remember { mutableStateOf(false) }
-            LaunchedEffect(Unit) {
-                delay(300)
-                ready = true
-            }
-            if (!ready) HomeScreenSkeleton()
-            else
-            HomeScreen(
-                onNavInicio       = {},
-                onNavSenas        = { navController.navigate(Routes.GESTURES) },
-                onNavDispositivos = { navController.navigate(Routes.DEVICES) },
-                onNavSugerencias  = { navController.navigate(Routes.SUGGESTIONS) },
-                onNavPerfil       = { navController.navigate(Routes.PROFILE) },
-                onNotifications   = {},
-                onVerTodos        = { navController.navigate(Routes.DEVICES) }
-            )
-        }
-
-        composable(Routes.GESTURES) {
             var ready by remember { mutableStateOf(false) }
             LaunchedEffect(Unit) {
                 delay(300) // tiempo mínimo para evitar flash
                 ready = true
             }
-            if (!ready) GesturesScreenSkeleton()
+            if (!ready) HomeScreenSkeleton()
             else
+            HomeScreen(
+                onNavInicio       = { /* already here */ },
+                onNavSenas        = { navController.navigate(Routes.GESTURES) },
+                onNavDispositivos = { navController.navigate(Routes.DEVICES) },
+                onNavSugerencias  = { navController.navigate(Routes.SUGGESTIONS) },
+                onNavPerfil       = { navController.navigate(Routes.PROFILE) },
+                onNotifications   = { /* TODO: notifications screen */ },
+                onVerTodos        = { navController.navigate(Routes.DEVICES) }
+            )
+        }
+
+        composable(Routes.GESTURES) {
             GesturesScreen(
-                onAddGesture      = {},
-                onGestureClick    = { navController.navigate(Routes.DEVICE_DETAIL) },
+                onAddGesture   = {
+                    // New gesture: use placeholder id "new"
+                    navController.navigate(Routes.configureGesture("new"))
+                },
+                onGestureClick = { gesture ->
+                    navController.navigate(Routes.gestureDetail(gesture.name))
+                },
                 onNavInicio       = { navController.navigate(Routes.HOME) },
                 onNavDispositivos = { navController.navigate(Routes.DEVICES) },
                 onNavSugerencias  = { navController.navigate(Routes.SUGGESTIONS) },
@@ -218,6 +252,7 @@ fun AppNavHost(navController: NavHostController) {
         }
 
         composable(Routes.DEVICES) {
+            val userId = session.getUserId() ?: ""
             var ready by remember { mutableStateOf(false) }
             LaunchedEffect(Unit) {
                 delay(300) // tiempo mínimo para evitar flash
@@ -226,46 +261,39 @@ fun AppNavHost(navController: NavHostController) {
             if (!ready) DevicesScreenSkeleton()
             else
             DevicesScreen(
+                userId            = userId,
                 onAddDevice       = { navController.navigate(Routes.SCAN_NETWORK) },
                 onNavInicio       = { navController.navigate(Routes.HOME) },
                 onNavSenas        = { navController.navigate(Routes.GESTURES) },
                 onNavSugerencias  = { navController.navigate(Routes.SUGGESTIONS) },
-                onNavPerfil       = { navController.navigate(Routes.PROFILE) }
+                onNavPerfil       = { navController.navigate(Routes.PROFILE) },
+                onDeviceClick     = { deviceId -> navController.navigate(Routes.deviceDetail(deviceId)) },
             )
         }
 
         composable(Routes.SUGGESTIONS) {
-            var ready by remember { mutableStateOf(false) }
-            LaunchedEffect(Unit) {
-                delay(300) // tiempo mínimo para evitar flash
-                ready = true
-            }
-            if (!ready) SuggestionsScreenSkeleton()
-            else
             SuggestionsScreen(
                 onNavInicio        = { navController.navigate(Routes.HOME) },
                 onNavSenas         = { navController.navigate(Routes.GESTURES) },
                 onNavDispositivos  = { navController.navigate(Routes.DEVICES) },
                 onNavPerfil        = { navController.navigate(Routes.PROFILE) },
-                onActivateFeatured = {},
-                onSuggestionClick  = {},
-                onFilter           = {}
+                onActivateFeatured = {
+                    navController.navigate(Routes.routineDetail("featured"))
+                },
+                onSuggestionClick  = { suggestion ->
+                    navController.navigate(Routes.routineDetail(suggestion.title))
+                },
+                onFilter = { /* TODO: filter sheet */ }
             )
         }
 
         composable(Routes.PROFILE) {
-            var ready by remember { mutableStateOf(false) }
-            LaunchedEffect(Unit) {
-                delay(300) // tiempo mínimo para evitar flash
-                ready = true
-            }
-            if (!ready) ProfileScreenSkeleton()
-            else
+            // ProfileScreen uses its own SessionManager + ProfileViewModel internally
+            // GET /api/users/{id} is called automatically on enter
             ProfileScreen(
                 onEdit   = { navController.navigate(Routes.EDIT_PROFILE) },
-                onConfiguration = { navController.navigate(Routes.SETTINGS) },
-                onPreferences = { navController.navigate(Routes.PREFERENCES)},
                 onLogout = {
+                    // session.clearSession() is called inside ProfileScreen
                     navController.navigate(Routes.LOGIN) {
                         popUpTo(0) { inclusive = true }
                     }
@@ -277,9 +305,10 @@ fun AppNavHost(navController: NavHostController) {
             )
         }
 
-        // ── Device flow ───────────────────────────────────────────────────
+        // ══ DEVICE FLOW ══════════════════════════════════════════════════════
 
-        composable(Routes.DEVICE_DETAIL) {
+        composable(Routes.DEVICE_DETAIL) { backStack ->
+            val deviceId = backStack.arguments?.getString("deviceId") ?: ""
             var ready by remember { mutableStateOf(false) }
             LaunchedEffect(Unit) {
                 delay(300) // tiempo mínimo para evitar flash
@@ -288,71 +317,59 @@ fun AppNavHost(navController: NavHostController) {
             if (!ready) DeviceDetailSkeleton()
             else
             DeviceDetailScreen(
-                onBack = { navController.popBackStack() },
-                onMore = {}
+                deviceId          = deviceId,
+                onBack            = { navController.popBackStack() },
+                onDeleted         = { navController.popBackStack() },
+                onEditGestures    = { },
+                onGestureClick    = { },
             )
         }
 
         composable(Routes.SCAN_NETWORK) {
-            var ready by remember { mutableStateOf(false) }
-            LaunchedEffect(Unit) {
-                delay(300) // tiempo mínimo para evitar flash
-                ready = true
-            }
-            if (!ready) GenericDetailSkeleton()
-            else
+            val userId = session.getUserId() ?: ""
             ScanNetworkScreen(
-                onBack      = { navController.popBackStack() },
-                onCancel    = { navController.popBackStack() },
-                onViewFound = { navController.navigate(Routes.FOUND_DEVICES) }
-            )
-        }
-
-        composable(Routes.FOUND_DEVICES) {
-            var ready by remember { mutableStateOf(false) }
-            LaunchedEffect(Unit) {
-                delay(300) // tiempo mínimo para evitar flash
-                ready = true
-            }
-            if (!ready) GenericDetailSkeleton()
-            else
-            FoundDevicesScreen(
                 onBack   = { navController.popBackStack() },
-                onRescan = { navController.popBackStack() },
-                onLink   = { navController.navigate(Routes.CONFIGURE_DEVICE) }
+                onCancel = { navController.popBackStack() },
+                onViewFound = { scanId ->
+                    navController.navigate(Routes.foundDevices(scanId.toString()))
+                },
             )
         }
 
-        composable(Routes.CONFIGURE_DEVICE) {
-            var ready by remember { mutableStateOf(false) }
-            LaunchedEffect(Unit) {
-                delay(300) // tiempo mínimo para evitar flash
-                ready = true
-            }
-            if (!ready) GenericDetailSkeleton()
-            else
-            ConfigureDeviceScreen(
-                onBack    = { navController.popBackStack() },
-                onSave    = { _, _, _ ->
-                    navController.navigate(Routes.DEVICE_SUCCESS) {
+        composable(Routes.FOUND_DEVICES) { backStack ->
+            val scanId = backStack.arguments?.getString("scanId") ?: ""
+            val userId = session.getUserId() ?: ""
+            FoundDevicesScreen(
+                userId   = userId,
+                onBack   = { navController.popBackStack() },
+                onLinked = {
+                    navController.navigate(Routes.DEVICE_SUCCESS.replace("{deviceId}", "new")) {
                         popUpTo(Routes.SCAN_NETWORK) { inclusive = true }
                     }
                 },
-                onAddRoom = {}
             )
         }
 
-        composable(Routes.DEVICE_SUCCESS) {
-            var ready by remember { mutableStateOf(false) }
-            LaunchedEffect(Unit) {
-                delay(300) // tiempo mínimo para evitar flash
-                ready = true
-            }
-            if (!ready) GesturesScreenSkeleton()
-            else
+        composable(Routes.CONFIGURE_DEVICE) { backStack ->
+            val scanId = backStack.arguments?.getString("scanId") ?: ""
+            val userId = session.getUserId() ?: ""
+            ConfigureDeviceScreen(
+                deviceRawName = scanId,
+                onBack       = { navController.popBackStack() },
+                onSave       = { name, room, icon ->
+                    navController.navigate(Routes.deviceSuccess("new")) {
+                        popUpTo(Routes.SCAN_NETWORK) { inclusive = true }
+                    }
+                },
+                onAddRoom    = { },
+            )
+        }
+
+        composable(Routes.DEVICE_SUCCESS) { backStack ->
+            val deviceId = backStack.arguments?.getString("deviceId") ?: ""
             DeviceSuccessScreen(
                 onLinkGesture = {
-                    navController.navigate(Routes.GESTURES) {
+                    navController.navigate(Routes.configureGesture("new")) {
                         popUpTo(Routes.DEVICES) { inclusive = false }
                     }
                 },
@@ -364,45 +381,101 @@ fun AppNavHost(navController: NavHostController) {
             )
         }
 
-        // ── Profile flow ──────────────────────────────────────────────────
+        // ══ GESTURE FLOW ══════════════════════════════════════════════════════
+
+        composable(Routes.GESTURE_DETAIL) { backStack ->
+            val gestureId = backStack.arguments?.getString("gestureId") ?: ""
+            GestureDetailScreen(
+                onBack         = { navController.popBackStack() },
+                onMore         = { /* TODO: options bottom sheet */ },
+                onChangeAction = {
+                    navController.navigate(Routes.configureGesture(gestureId))
+                },
+                onActionClick  = { /* navigate to linked device/service */ },
+                onTest         = { /* TODO: trigger gesture test */ },
+                onDelete       = {
+                    navController.navigate(Routes.GESTURES) {
+                        popUpTo(Routes.GESTURES) { inclusive = false }
+                    }
+                }
+            )
+        }
+
+        composable(Routes.CONFIGURE_GESTURE) { backStack ->
+            val gestureId = backStack.arguments?.getString("gestureId") ?: ""
+            ConfigureGestureScreen(
+                onBack = { navController.popBackStack() },
+                onSave = { actionType, details ->
+                    navController.navigate(Routes.gestureSaved(gestureId)) {
+                        popUpTo(Routes.CONFIGURE_GESTURE) { inclusive = true }
+                    }
+                },
+                onDetailClick = { /* open sub-picker for that field */ }
+            )
+        }
+
+        composable(Routes.GESTURE_SAVED) { backStack ->
+            val gestureId = backStack.arguments?.getString("gestureId") ?: ""
+            GestureSavedScreen(
+                onTest = { /* TODO: trigger live test */ },
+                onBack = {
+                    navController.navigate(Routes.GESTURES) {
+                        popUpTo(Routes.GESTURES) { inclusive = false }
+                    }
+                }
+            )
+        }
+
+        // ══ PROFILE FLOW ══════════════════════════════════════════════════════
 
         composable(Routes.EDIT_PROFILE) {
-            var ready by remember { mutableStateOf(false) }
-            LaunchedEffect(Unit) {
-                delay(300) // tiempo mínimo para evitar flash
-                ready = true
-            }
-            if (!ready) GenericDetailSkeleton()
-            else
             EditProfileScreen(
                 onBack = { navController.popBackStack() },
-                onSave = { _, _, _, _, _ -> navController.popBackStack() }
+                onSave = { _: String, _: String, _: String, _: String, _: List<HomeRoom> ->
+                    navController.popBackStack()
+                },
             )
         }
 
         composable(Routes.SETTINGS) {
-            var ready by remember { mutableStateOf(false) }
-            LaunchedEffect(Unit) {
-                delay(300) // tiempo mínimo para evitar flash
-                ready = true
-            }
-            if (!ready) GenericDetailSkeleton()
-            else
             SettingsScreen(
                 onBack = { navController.popBackStack() }
             )
         }
 
         composable(Routes.PREFERENCES) {
-            var ready by remember { mutableStateOf(false) }
-            LaunchedEffect(Unit) {
-                delay(300) // tiempo mínimo para evitar flash
-                ready = true
-            }
-            if (!ready) GenericDetailSkeleton()
-            else
             PreferencesScreen(
                 onBack = { navController.popBackStack() }
+            )
+        }
+
+        // ══ SUGGESTIONS FLOW ══════════════════════════════════════════════════
+
+        composable(Routes.ROUTINE_DETAIL) { backStack ->
+            val routineId = backStack.arguments?.getString("routineId") ?: ""
+            RoutineDetailScreen(
+                onBack    = { navController.popBackStack() },
+                onShare   = { /* TODO: share intent */ },
+                onDiscard = { navController.popBackStack() },
+                onActivate = {
+                    navController.navigate(Routes.routineActivated(routineId))
+                }
+            )
+        }
+
+        composable(Routes.ROUTINE_ACTIVATED) { backStack ->
+            val routineId = backStack.arguments?.getString("routineId") ?: ""
+            RoutineActivatedScreen(
+                onViewRoutines  = {
+                    navController.navigate(Routes.SUGGESTIONS) {
+                        popUpTo(Routes.SUGGESTIONS) { inclusive = false }
+                    }
+                },
+                onKeepExploring = {
+                    navController.navigate(Routes.SUGGESTIONS) {
+                        popUpTo(Routes.SUGGESTIONS) { inclusive = false }
+                    }
+                }
             )
         }
     }
