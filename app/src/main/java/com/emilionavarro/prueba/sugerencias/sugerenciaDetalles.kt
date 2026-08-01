@@ -1,7 +1,5 @@
 package com.emilionavarro.prueba.sugerencias
 
-
-
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -21,6 +19,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.emilionavarro.prueba.sugerencias.viewmodel.SuggestionsViewModel
+import java.util.Locale
 
 // ── Color tokens ─────────────────────────────────────────────────────────────
 private val Background   = Color(0xFFEAE7E0)
@@ -30,27 +30,75 @@ private val OnBackground = Color(0xFF1C1C1C)
 private val Subtle       = Color(0xFF7A7A7A)
 private val Accent       = Color(0xFF232320)
 private val BorderColor  = Color(0xFFDDDAD3)
+private val ErrorColor   = Color(0xFFB3413B)
 
 // ── Data ──────────────────────────────────────────────────────────────────────
 data class RoutineTrigger(val icon: ImageVector, val label: String, val value: String)
 data class RoutineStat(val value: String, val unit: String, val description: String)
 
-// ── Screen ────────────────────────────────────────────────────────────────────
+// ── Screen (con estado / conectada al backend) ─────────────────────────────────
 @Composable
 fun RoutineDetailScreen(
+    suggestionId: String,
+    userId: String,
+    viewModel: SuggestionsViewModel,
+    onBack: () -> Unit = {},
+    onShare: () -> Unit = {},
+    onDiscard: () -> Unit = {},
+    onActivated: (String) -> Unit = {},
+) {
+    val state = viewModel.uiState
+
+    // Por si se entra directo a esta ruta (deep link / recomposición) sin pasar por la lista.
+    LaunchedEffect(suggestionId) {
+        if (state.selectedSuggestion?.id != suggestionId) {
+            viewModel.selectSuggestion(suggestionId)
+        }
+    }
+
+    // Cuando el ViewModel confirma que la rutina se creó, navegamos automáticamente.
+    LaunchedEffect(state.activatedRoutine) {
+        state.activatedRoutine?.id?.let(onActivated)
+    }
+
+    val suggestion = state.selectedSuggestion
+    val kwh = suggestion?.let { String.format(Locale.getDefault(), "%.1f", it.projectedKwhSaving) }
+
+    RoutineDetailScreenContent(
+        title = suggestion?.recommendationText ?: "Sugerencia",
+        description = "Sugerencia basada en el análisis de tu consumo reciente.",
+        stats = if (suggestion != null) {
+            listOf(RoutineStat(value = kwh ?: "0.0", unit = "kWh", description = "Ahorro\nestimado"))
+        } else emptyList(),
+        triggers = if (suggestion != null) {
+            listOf(RoutineTrigger(Icons.Outlined.AutoAwesome, "Categoría detectada", suggestion.assignedCluster))
+        } else emptyList(),
+        whyReason = suggestion?.let {
+            "Tu patrón de consumo fue clasificado en la categoría \"${it.assignedCluster}\". Activar esta rutina podría ahorrarte aproximadamente $kwh kWh."
+        } ?: "No encontramos el detalle de esta sugerencia.",
+        isActivating = state.isActivating,
+        activateError = state.activateError,
+        onBack = onBack,
+        onShare = onShare,
+        onDiscard = onDiscard,
+        onActivate = { viewModel.activateSelectedSuggestion(userId) },
+    )
+}
+
+// ── Screen (sin estado / puramente visual, usada por el Preview) ──────────────
+@Composable
+fun RoutineDetailScreenContent(
     title: String       = "Apaga el aire 30 min antes de salir",
     description: String = "Detectamos que sales entre 8:15 y 8:45. La habitación mantiene la temperatura 12 min después de apagarlo.",
     stats: List<RoutineStat> = listOf(
         RoutineStat("0.6",  "kWh/día",  "Ahorro\nestimado"),
-        RoutineStat("~\$140", "/mes",   "En tu recibo"),
-        RoutineStat("12kg", "CO₂/mes",  "Menos\nemisiones"),
     ),
     triggers: List<RoutineTrigger> = listOf(
-        RoutineTrigger(Icons.Outlined.Schedule,      "Hora",       "Lun a Vie · 07:45"),
-        RoutineTrigger(Icons.Outlined.LocationOn,    "Ubicación",  "Al salir de casa"),
-        RoutineTrigger(Icons.Outlined.SettingsRemote,"Acción",     "Apagar Aire Habitación"),
+        RoutineTrigger(Icons.Outlined.AutoAwesome, "Categoría detectada", "Clima"),
     ),
-    whyReason: String = "En los últimos 14 días, tu aire estuvo prendido 38 minutos después de tu última detección de presencia. Apagarlo antes es una de las formas más simples de ahorrar.",
+    whyReason: String = "Detectamos una oportunidad de ahorro en tu patrón de consumo reciente.",
+    isActivating: Boolean = false,
+    activateError: String? = null,
     onBack: () -> Unit = {},
     onShare: () -> Unit = {},
     onDiscard: () -> Unit = {},
@@ -123,7 +171,6 @@ fun RoutineDetailScreen(
                     .padding(20.dp)
             ) {
                 Column {
-                    // Badge
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -167,70 +214,74 @@ fun RoutineDetailScreen(
             Spacer(Modifier.height(14.dp))
 
             // ── Stats row ─────────────────────────────────────────────────
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                stats.forEach { stat ->
-                    Column(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(Surface)
-                            .padding(vertical = 14.dp, horizontal = 10.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Row(verticalAlignment = Alignment.Bottom) {
+            if (stats.isNotEmpty()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    stats.forEach { stat ->
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(Surface)
+                                .padding(vertical = 14.dp, horizontal = 10.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Row(verticalAlignment = Alignment.Bottom) {
+                                Text(
+                                    stat.value,
+                                    fontSize = 20.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = OnBackground
+                                )
+                                Text(
+                                    stat.unit,
+                                    fontSize = 11.sp,
+                                    color = Subtle,
+                                    modifier = Modifier.padding(bottom = 2.dp, start = 1.dp)
+                                )
+                            }
+                            Spacer(Modifier.height(2.dp))
                             Text(
-                                stat.value,
-                                fontSize = 20.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = OnBackground
-                            )
-                            Text(
-                                stat.unit,
-                                fontSize = 11.sp,
+                                stat.description,
+                                fontSize = 10.sp,
                                 color = Subtle,
-                                modifier = Modifier.padding(bottom = 2.dp, start = 1.dp)
+                                lineHeight = 13.sp,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
                             )
                         }
-                        Spacer(Modifier.height(2.dp))
-                        Text(
-                            stat.description,
-                            fontSize = 10.sp,
-                            color = Subtle,
-                            lineHeight = 13.sp,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                        )
                     }
                 }
-            }
 
-            Spacer(Modifier.height(22.dp))
+                Spacer(Modifier.height(22.dp))
+            }
 
             // ── CUÁNDO SE ACTIVA ──────────────────────────────────────────
-            SectionLabel("CUÁNDO SE ACTIVA")
-            Spacer(Modifier.height(10.dp))
+            if (triggers.isNotEmpty()) {
+                SectionLabel("CUÁNDO SE ACTIVA")
+                Spacer(Modifier.height(10.dp))
 
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(Surface)
-            ) {
-                triggers.forEachIndexed { index, trigger ->
-                    TriggerRow(trigger)
-                    if (index < triggers.lastIndex) {
-                        HorizontalDivider(
-                            modifier = Modifier.padding(horizontal = 14.dp),
-                            color = BorderColor,
-                            thickness = 0.5.dp
-                        )
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(Surface)
+                ) {
+                    triggers.forEachIndexed { index, trigger ->
+                        TriggerRow(trigger)
+                        if (index < triggers.lastIndex) {
+                            HorizontalDivider(
+                                modifier = Modifier.padding(horizontal = 14.dp),
+                                color = BorderColor,
+                                thickness = 0.5.dp
+                            )
+                        }
                     }
                 }
-            }
 
-            Spacer(Modifier.height(22.dp))
+                Spacer(Modifier.height(22.dp))
+            }
 
             // ── ¿POR QUÉ TE LO SUGERIMOS? ────────────────────────────────
             SectionLabel("¿POR QUÉ TE LO SUGERIMOS?")
@@ -260,6 +311,15 @@ fun RoutineDetailScreen(
                     lineHeight = 19.sp
                 )
             }
+
+            if (activateError != null) {
+                Spacer(Modifier.height(14.dp))
+                Text(
+                    activateError,
+                    fontSize = 12.sp,
+                    color = ErrorColor
+                )
+            }
         }
 
         // ── Bottom action bar ─────────────────────────────────────────────
@@ -273,6 +333,7 @@ fun RoutineDetailScreen(
         ) {
             OutlinedButton(
                 onClick = onDiscard,
+                enabled = !isActivating,
                 modifier = Modifier
                     .weight(1f)
                     .height(54.dp),
@@ -288,18 +349,27 @@ fun RoutineDetailScreen(
 
             Button(
                 onClick = onActivate,
+                enabled = !isActivating,
                 modifier = Modifier
                     .weight(2f)
                     .height(54.dp),
                 shape = RoundedCornerShape(14.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Accent)
             ) {
-                Text(
-                    "Activar rutina",
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Color.White
-                )
+                if (isActivating) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        color = Color.White,
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Text(
+                        "Activar rutina",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color.White
+                    )
+                }
             }
         }
     }
@@ -349,5 +419,5 @@ private fun SectionLabel(text: String) {
 @Preview(showBackground = true, widthDp = 390, heightDp = 844)
 @Composable
 fun RoutineDetailScreenPreview() {
-    RoutineDetailScreen()
+    RoutineDetailScreenContent()
 }

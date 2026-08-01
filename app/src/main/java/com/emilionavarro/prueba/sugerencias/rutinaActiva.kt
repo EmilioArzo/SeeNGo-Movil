@@ -1,7 +1,5 @@
 package com.emilionavarro.prueba.sugerencias
 
-
-
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -21,6 +19,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.emilionavarro.prueba.sugerencias.viewmodel.SuggestionsViewModel
+import java.util.Locale
 
 // ── Color tokens ─────────────────────────────────────────────────────────────
 private val Background   = Color(0xFFEAE7E0)
@@ -34,14 +34,34 @@ private val IconGreenBg  = Color(0xFF3D6B50)
 private val ToggleOn     = Color(0xFF232320)
 private val TagBg        = Color(0xFFE4E1D9)
 
-// ── Screen ────────────────────────────────────────────────────────────────────
+// ── Screen (con estado / conectada al backend) ─────────────────────────────────
 @Composable
 fun RoutineActivatedScreen(
+    viewModel: SuggestionsViewModel,
+    onViewRoutines: () -> Unit = {},
+    onKeepExploring: () -> Unit = {},
+) {
+    val state = viewModel.uiState
+    val routine = state.activatedRoutine
+    val suggestion = state.selectedSuggestion
+    val kwh = suggestion?.let { String.format(Locale.getDefault(), "%.1f", it.projectedKwhSaving) }
+
+    RoutineActivatedScreenContent(
+        routineName = routine?.name ?: "Rutina activada",
+        routineSchedule = routine?.triggerValue?.let { "Categoría: $it" } ?: "",
+        savingsTag = kwh?.let { "~$it kWh estimados" },
+        onViewRoutines = onViewRoutines,
+        onKeepExploring = onKeepExploring,
+    )
+}
+
+// ── Screen (sin estado / puramente visual, usada por el Preview) ──────────────
+@Composable
+fun RoutineActivatedScreenContent(
     routineName: String   = "Apagado anticipado · Aire",
     routineSchedule: String = "Lun-Vie · 07:45",
-    savingsTag: String    = "~\$140/mes",
-    emissionsTag: String  = "12kg CO₂",
-    confirmationText: String = "Vamos a apagar tu aire 30 min antes de salir. Te diremos cuánto ahorraste cada semana.",
+    savingsTag: String?   = "~\$140/mes",
+    confirmationText: String = "Activamos tu rutina. Te avisaremos cuánto ahorraste cada semana.",
     onViewRoutines: () -> Unit = {},
     onKeepExploring: () -> Unit = {},
 ) {
@@ -120,7 +140,6 @@ fun RoutineActivatedScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        // Icon
                         Box(
                             modifier = Modifier
                                 .size(44.dp)
@@ -145,11 +164,13 @@ fun RoutineActivatedScreen(
                                 fontWeight = FontWeight.SemiBold,
                                 color = OnBackground
                             )
-                            Text(
-                                routineSchedule,
-                                fontSize = 12.sp,
-                                color = Subtle
-                            )
+                            if (routineSchedule.isNotBlank()) {
+                                Text(
+                                    routineSchedule,
+                                    fontSize = 12.sp,
+                                    color = Subtle
+                                )
+                            }
                         }
 
                         Switch(
@@ -162,18 +183,16 @@ fun RoutineActivatedScreen(
                         )
                     }
 
-                    Spacer(Modifier.height(10.dp))
-
-                    // Tags
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        listOf(savingsTag, emissionsTag).forEach { tag ->
+                    if (savingsTag != null) {
+                        Spacer(Modifier.height(10.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(8.dp))
                                     .background(TagBg)
                                     .padding(horizontal = 10.dp, vertical = 4.dp)
                             ) {
-                                Text(tag, fontSize = 12.sp, color = OnBackground, fontWeight = FontWeight.Medium)
+                                Text(savingsTag, fontSize = 12.sp, color = OnBackground, fontWeight = FontWeight.Medium)
                             }
                         }
                     }
@@ -229,5 +248,5 @@ fun RoutineActivatedScreen(
 @Preview(showBackground = true, widthDp = 390, heightDp = 844)
 @Composable
 fun RoutineActivatedScreenPreview() {
-    RoutineActivatedScreen()
+    RoutineActivatedScreenContent()
 }

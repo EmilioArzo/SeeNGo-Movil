@@ -1,85 +1,48 @@
 package com.emilionavarro.prueba
 
-import com.emilionavarro.prueba.autenticacion.ForgotPasswordScreen
-import com.emilionavarro.prueba.autenticacion.LoginScreen
-import com.emilionavarro.prueba.autenticacion.NewPasswordScreen
-import com.emilionavarro.prueba.autenticacion.RegisterScreen
-import com.emilionavarro.prueba.autenticacion.SplashScreen
-import com.emilionavarro.prueba.dispositivos.ConfigureDeviceScreen
-import com.emilionavarro.prueba.dispositivos.DeviceDetailScreen
-import com.emilionavarro.prueba.dispositivos.DeviceSuccessScreen
-import com.emilionavarro.prueba.dispositivos.DevicesScreen
-import com.emilionavarro.prueba.dispositivos.FoundDevicesScreen
-import com.emilionavarro.prueba.dispositivos.ScanNetworkScreen
-import com.emilionavarro.prueba.perfil.EditProfileScreen
-import com.emilionavarro.prueba.perfil.PreferencesScreen
-import com.emilionavarro.prueba.perfil.ProfileScreen
-import com.emilionavarro.prueba.perfil.SettingsScreen
-import com.emilionavarro.prueba.senas.GesturesScreen
-import com.emilionavarro.prueba.sugerencias.SuggestionsScreen
-import com.emilionavarro.seengo.inicio.HomeScreen
-
-
-import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
-import com.emilionavarro.prueba.inicio.DeviceDetailSkeleton
-import com.emilionavarro.prueba.inicio.DevicesScreenSkeleton
-import com.emilionavarro.prueba.inicio.GenericDetailSkeleton
-import com.emilionavarro.prueba.inicio.GesturesScreenSkeleton
-import com.emilionavarro.prueba.inicio.HomeScreenSkeleton
-import com.emilionavarro.prueba.inicio.ProfileScreenSkeleton
-import com.emilionavarro.prueba.inicio.SuggestionsScreenSkeleton
-import kotlinx.coroutines.delay
-
-
-import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
-import androidx.compose.runtime.*
-import androidx.compose.ui.platform.LocalContext
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
-import com.emilionavarro.prueba.autenticacion.data.local.SessionManager
-import com.emilionavarro.prueba.senas.ConfigureGestureScreen
-import com.emilionavarro.prueba.senas.GestureDetailScreen
-import com.emilionavarro.prueba.senas.GestureSavedScreen
-import com.emilionavarro.prueba.sugerencias.RoutineActivatedScreen
-import com.emilionavarro.prueba.sugerencias.RoutineDetailScreen
-
-
-
-import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
-import androidx.compose.runtime.*
-import androidx.compose.ui.platform.LocalContext
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
-import com.emilionavarro.prueba.perfil.HomeRoom
-
-
-
-
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import kotlinx.coroutines.delay
+
+import com.emilionavarro.prueba.autenticacion.ForgotPasswordScreen
+import com.emilionavarro.prueba.autenticacion.LoginScreen
+import com.emilionavarro.prueba.autenticacion.NewPasswordScreen
+import com.emilionavarro.prueba.autenticacion.RegisterScreen
+import com.emilionavarro.prueba.autenticacion.SplashScreen
+import com.emilionavarro.prueba.autenticacion.data.local.SessionManager
+import com.emilionavarro.prueba.dispositivos.ConfigureDeviceScreen
+import com.emilionavarro.prueba.dispositivos.DeviceDetailScreen
+import com.emilionavarro.prueba.dispositivos.DeviceSuccessScreen
+import com.emilionavarro.prueba.dispositivos.DevicesScreen
+import com.emilionavarro.prueba.dispositivos.FoundDevicesScreen
+import com.emilionavarro.prueba.dispositivos.ScanNetworkScreen
+import com.emilionavarro.prueba.inicio.DeviceDetailSkeleton
+import com.emilionavarro.prueba.inicio.DevicesScreenSkeleton
+import com.emilionavarro.prueba.inicio.HomeScreenSkeleton
+import com.emilionavarro.prueba.perfil.EditProfileScreen
+import com.emilionavarro.prueba.perfil.HomeRoom
+import com.emilionavarro.prueba.perfil.PreferencesScreen
+import com.emilionavarro.prueba.perfil.ProfileScreen
+import com.emilionavarro.prueba.perfil.SettingsScreen
+import com.emilionavarro.prueba.senas.ConfigureGestureScreen
+import com.emilionavarro.prueba.senas.GestureDetailScreen
+import com.emilionavarro.prueba.senas.GestureSavedScreen
+import com.emilionavarro.prueba.senas.GesturesScreen
+import com.emilionavarro.prueba.sugerencias.RoutineActivatedScreen
+import com.emilionavarro.prueba.sugerencias.RoutineDetailScreen
+import com.emilionavarro.prueba.sugerencias.SuggestionsScreen
+import com.emilionavarro.prueba.sugerencias.viewmodel.SuggestionsViewModel
+import com.emilionavarro.prueba.sugerencias.viewmodel.SuggestionsViewModelFactory
+import com.emilionavarro.seengo.inicio.HomeScreen
 
 
 class MainActivity : ComponentActivity() {
@@ -127,6 +90,9 @@ object Routes {
     const val PREFERENCES       = "preferences"
 
     // Suggestions flow
+    // NOTA: "{routineId}" en realidad ahora recibe el id de la SUGERENCIA
+    // (SuggestionDto.id), ya que el backend aún no distingue una rutina
+    // "candidata" (sugerencia) de una rutina real creada.
     const val ROUTINE_DETAIL    = "routine_detail/{routineId}"
     const val ROUTINE_ACTIVATED = "routine_activated/{routineId}"
 
@@ -147,6 +113,10 @@ object Routes {
 fun AppNavHost(navController: NavHostController) {
     val context = LocalContext.current
     val session = remember { SessionManager(context) }
+
+    // ViewModel único compartido entre las 3 pantallas del módulo de Sugerencias.
+    // Ver SuggestionsViewModel para el porqué (el backend no tiene GET /suggestions/{id}).
+    val suggestionsViewModel: SuggestionsViewModel = viewModel(factory = SuggestionsViewModelFactory())
 
     // Decide start destination: if already logged in skip auth
     val startDest = if (session.isLoggedIn()) Routes.HOME else Routes.SPLASH
@@ -224,15 +194,15 @@ fun AppNavHost(navController: NavHostController) {
             }
             if (!ready) HomeScreenSkeleton()
             else
-            HomeScreen(
-                onNavInicio       = { /* already here */ },
-                onNavSenas        = { navController.navigate(Routes.GESTURES) },
-                onNavDispositivos = { navController.navigate(Routes.DEVICES) },
-                onNavSugerencias  = { navController.navigate(Routes.SUGGESTIONS) },
-                onNavPerfil       = { navController.navigate(Routes.PROFILE) },
-                onNotifications   = { /* TODO: notifications screen */ },
-                onVerTodos        = { navController.navigate(Routes.DEVICES) }
-            )
+                HomeScreen(
+                    onNavInicio       = { /* already here */ },
+                    onNavSenas        = { navController.navigate(Routes.GESTURES) },
+                    onNavDispositivos = { navController.navigate(Routes.DEVICES) },
+                    onNavSugerencias  = { navController.navigate(Routes.SUGGESTIONS) },
+                    onNavPerfil       = { navController.navigate(Routes.PROFILE) },
+                    onNotifications   = { /* TODO: notifications screen */ },
+                    onVerTodos        = { navController.navigate(Routes.DEVICES) }
+                )
         }
 
         composable(Routes.GESTURES) {
@@ -260,28 +230,33 @@ fun AppNavHost(navController: NavHostController) {
             }
             if (!ready) DevicesScreenSkeleton()
             else
-            DevicesScreen(
-                userId            = userId,
-                onAddDevice       = { navController.navigate(Routes.SCAN_NETWORK) },
-                onNavInicio       = { navController.navigate(Routes.HOME) },
-                onNavSenas        = { navController.navigate(Routes.GESTURES) },
-                onNavSugerencias  = { navController.navigate(Routes.SUGGESTIONS) },
-                onNavPerfil       = { navController.navigate(Routes.PROFILE) },
-                onDeviceClick     = { deviceId -> navController.navigate(Routes.deviceDetail(deviceId)) },
-            )
+                DevicesScreen(
+                    userId            = userId,
+                    onAddDevice       = { navController.navigate(Routes.SCAN_NETWORK) },
+                    onNavInicio       = { navController.navigate(Routes.HOME) },
+                    onNavSenas        = { navController.navigate(Routes.GESTURES) },
+                    onNavSugerencias  = { navController.navigate(Routes.SUGGESTIONS) },
+                    onNavPerfil       = { navController.navigate(Routes.PROFILE) },
+                    onDeviceClick     = { deviceId -> navController.navigate(Routes.deviceDetail(deviceId)) },
+                )
         }
 
         composable(Routes.SUGGESTIONS) {
+            val userId = session.getUserId() ?: ""
             SuggestionsScreen(
+                userId             = userId,
+                viewModel          = suggestionsViewModel,
                 onNavInicio        = { navController.navigate(Routes.HOME) },
                 onNavSenas         = { navController.navigate(Routes.GESTURES) },
                 onNavDispositivos  = { navController.navigate(Routes.DEVICES) },
                 onNavPerfil        = { navController.navigate(Routes.PROFILE) },
-                onActivateFeatured = {
-                    navController.navigate(Routes.routineDetail("featured"))
+                onActivateFeatured = { card ->
+                    suggestionsViewModel.selectSuggestion(card.id)
+                    navController.navigate(Routes.routineDetail(card.id))
                 },
-                onSuggestionClick  = { suggestion ->
-                    navController.navigate(Routes.routineDetail(suggestion.title))
+                onSuggestionClick  = { card ->
+                    suggestionsViewModel.selectSuggestion(card.id)
+                    navController.navigate(Routes.routineDetail(card.id))
                 },
                 onFilter = { /* TODO: filter sheet */ }
             )
@@ -316,13 +291,13 @@ fun AppNavHost(navController: NavHostController) {
             }
             if (!ready) DeviceDetailSkeleton()
             else
-            DeviceDetailScreen(
-                deviceId          = deviceId,
-                onBack            = { navController.popBackStack() },
-                onDeleted         = { navController.popBackStack() },
-                onEditGestures    = { },
-                onGestureClick    = { },
-            )
+                DeviceDetailScreen(
+                    deviceId          = deviceId,
+                    onBack            = { navController.popBackStack() },
+                    onDeleted         = { navController.popBackStack() },
+                    onEditGestures    = { },
+                    onGestureClick    = { },
+                )
         }
 
         composable(Routes.SCAN_NETWORK) {
@@ -452,26 +427,37 @@ fun AppNavHost(navController: NavHostController) {
         // ══ SUGGESTIONS FLOW ══════════════════════════════════════════════════
 
         composable(Routes.ROUTINE_DETAIL) { backStack ->
-            val routineId = backStack.arguments?.getString("routineId") ?: ""
+            val suggestionId = backStack.arguments?.getString("routineId") ?: ""
+            val userId = session.getUserId() ?: ""
             RoutineDetailScreen(
-                onBack    = { navController.popBackStack() },
-                onShare   = { /* TODO: share intent */ },
-                onDiscard = { navController.popBackStack() },
-                onActivate = {
-                    navController.navigate(Routes.routineActivated(routineId))
+                suggestionId = suggestionId,
+                userId       = userId,
+                viewModel    = suggestionsViewModel,
+                onBack       = { navController.popBackStack() },
+                onShare      = { /* TODO: share intent */ },
+                onDiscard    = {
+                    suggestionsViewModel.discardSelected()
+                    navController.popBackStack()
+                },
+                onActivated  = { routineId ->
+                    navController.navigate(Routes.routineActivated(routineId)) {
+                        popUpTo(Routes.ROUTINE_DETAIL) { inclusive = true }
+                    }
                 }
             )
         }
 
-        composable(Routes.ROUTINE_ACTIVATED) { backStack ->
-            val routineId = backStack.arguments?.getString("routineId") ?: ""
+        composable(Routes.ROUTINE_ACTIVATED) {
             RoutineActivatedScreen(
+                viewModel = suggestionsViewModel,
                 onViewRoutines  = {
+                    suggestionsViewModel.clearActivation()
                     navController.navigate(Routes.SUGGESTIONS) {
                         popUpTo(Routes.SUGGESTIONS) { inclusive = false }
                     }
                 },
                 onKeepExploring = {
+                    suggestionsViewModel.clearActivation()
                     navController.navigate(Routes.SUGGESTIONS) {
                         popUpTo(Routes.SUGGESTIONS) { inclusive = false }
                     }
