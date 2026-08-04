@@ -1,7 +1,5 @@
 package com.emilionavarro.prueba.senas
 
-
-
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -17,11 +15,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.emilionavarro.prueba.dispositivos.data.ApiResult
+import com.emilionavarro.prueba.dispositivos.data.DeviceRepository
+import com.emilionavarro.prueba.dispositivos.network.DeviceResponse
+import com.emilionavarro.prueba.senas.viewmodel.GesturesViewModel
 
 // ── Color tokens ─────────────────────────────────────────────────────────────
 private val Background      = Color(0xFFEAE7E0)
@@ -30,37 +31,75 @@ private val OnBackground    = Color(0xFF1C1C1C)
 private val Subtle          = Color(0xFF7A7A7A)
 private val Accent          = Color(0xFF232320)
 private val BorderColor     = Color(0xFFDDDAD3)
-private val GifBadgeBg      = Color(0xFF2E332E)
 private val CardSelected    = Color(0xFFE8E5DE)
 private val BorderSelected  = Color(0xFF232320)
+private val ErrorColor      = Color(0xFFB3413B)
 
-// ── Data ──────────────────────────────────────────────────────────────────────
-data class ActionType(val icon: ImageVector, val label: String)
-data class ActionDetail(val icon: ImageVector, val label: String, val value: String)
-
-// ── Screen ────────────────────────────────────────────────────────────────────
+// ── Screen (con estado / conectada al backend) ─────────────────────────────────
 @Composable
 fun ConfigureGestureScreen(
-    gestureName: String     = "Mano abierta",
-    gestureEmoji: String    = "🤚",
-    onBack: () -> Unit      = {},
-    onSave: (actionType: String, details: Map<String, String>) -> Unit = { _, _ -> },
-    onDetailClick: (String) -> Unit = {},
+    gestureId: String,
+    userId: String,
+    viewModel: GesturesViewModel,
+    onBack: () -> Unit = {},
+    onSaved: () -> Unit = {},
 ) {
-    val actionTypes = listOf(
-        ActionType(Icons.Outlined.LightMode,   "Dispositivo"),
-        ActionType(Icons.Outlined.GraphicEq,   "Música"),
-        ActionType(Icons.Outlined.Layers,      "Escena"),
-        ActionType(Icons.Outlined.Settings,    "Sistema"),
-    )
-    var selectedType by remember { mutableStateOf("Música") }
+    val state = viewModel.uiState
+    val isNew = gestureId == "new"
 
-    val details = listOf(
-        ActionDetail(Icons.Outlined.GraphicEq, "Servicio",  "Spotify · maria.r"),
-        ActionDetail(Icons.Outlined.PlayArrow, "Acción",    "Reproducir playlist"),
-        ActionDetail(Icons.Outlined.MusicNote, "Playlist",  "Lo-fi para trabajar"),
-        ActionDetail(Icons.Outlined.VolumeUp,  "Volumen",   "60%"),
+    LaunchedEffect(gestureId) {
+        if (isNew) viewModel.startNewGesture()
+        else if (state.selectedGesture?.id != gestureId) viewModel.selectGesture(gestureId)
+    }
+
+    var devices by remember { mutableStateOf<List<DeviceResponse>>(emptyList()) }
+    var devicesError by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(userId) {
+        if (userId.isNotBlank()) {
+            when (val result = DeviceRepository().getDevices(userId)) {
+                is ApiResult.Success -> devices = result.data
+                is ApiResult.Error -> devicesError = result.message
+            }
+        }
+    }
+
+    LaunchedEffect(state.savedGesture) {
+        if (state.savedGesture != null) onSaved()
+    }
+
+    ConfigureGestureScreenContent(
+        gestureName = state.selectedGesture?.name ?: "",
+        availableDevices = devices,
+        selectedDeviceId = state.selectedGesture?.linkedDeviceId,
+        actionText = state.selectedGesture?.linkedAction ?: "",
+        isSaving = state.isSaving,
+        saveError = state.saveError,
+        devicesError = devicesError,
+        onBack = onBack,
+        onSave = { name, deviceId, action ->
+            viewModel.saveGesture(userId = userId, name = name, linkedDeviceId = deviceId, linkedAction = action)
+        }
     )
+}
+
+// ── Screen (sin estado / puramente visual, usada por el Preview) ──────────────
+@Composable
+fun ConfigureGestureScreenContent(
+    gestureName: String = "",
+    availableDevices: List<DeviceResponse> = emptyList(),
+    selectedDeviceId: String? = null,
+    actionText: String = "",
+    isSaving: Boolean = false,
+    saveError: String? = null,
+    devicesError: String? = null,
+    onBack: () -> Unit = {},
+    onSave: (name: String, deviceId: String?, action: String) -> Unit = { _, _, _ -> },
+) {
+    var name by remember(gestureName) { mutableStateOf(gestureName) }
+    var deviceId by remember(selectedDeviceId) { mutableStateOf(selectedDeviceId) }
+    var action by remember(actionText) { mutableStateOf(actionText) }
+
+    val canSave = name.isNotBlank() && !isSaving
 
     Box(
         modifier = Modifier
@@ -95,95 +134,79 @@ fun ConfigureGestureScreen(
                 )
             }
 
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(22.dp))
 
-            // ── Gesture header ────────────────────────────────────────────
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(Surface)
-                    .padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                // GIF thumbnail
-                Box(
-                    modifier = Modifier
-                        .size(52.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(Color(0xFFE8E5DE)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(gestureEmoji, fontSize = 26.sp)
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.TopStart)
-                            .padding(3.dp)
-                            .clip(RoundedCornerShape(4.dp))
-                            .background(GifBadgeBg)
-                            .padding(horizontal = 3.dp, vertical = 1.dp)
-                    ) {
-                        Text("GIF", fontSize = 7.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                    }
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(3.dp)
-                            .size(14.dp)
-                            .clip(RoundedCornerShape(50))
-                            .background(Color.White.copy(alpha = 0.85f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(Icons.Outlined.PlayArrow, null, tint = OnBackground, modifier = Modifier.size(9.dp))
-                    }
-                }
-
-                Column {
-                    Text(gestureName, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = OnBackground)
-                    Text("Vinculada a:", fontSize = 12.sp, color = Subtle)
-                }
-            }
+            // ── Nombre ────────────────────────────────────────────────────
+            SectionLabel("NOMBRE DE LA SEÑA")
+            Spacer(Modifier.height(8.dp))
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                placeholder = { Text("Ej. Mano abierta", color = Subtle) },
+                leadingIcon = { Icon(Icons.Outlined.PanTool, contentDescription = null, tint = Subtle) },
+                shape = RoundedCornerShape(14.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor    = Surface,
+                    unfocusedContainerColor  = Surface,
+                    focusedBorderColor       = OnBackground,
+                    unfocusedBorderColor     = BorderColor,
+                    focusedTextColor         = OnBackground,
+                    unfocusedTextColor       = OnBackground,
+                    cursorColor              = OnBackground
+                )
+            )
 
             Spacer(Modifier.height(22.dp))
 
-            // ── Action type grid ──────────────────────────────────────────
-            SectionLabel("TIPO DE ACCIÓN")
+            // ── Selector de dispositivo (reemplaza la grilla de tipos mock) ──
+            SectionLabel("DISPOSITIVO A CONTROLAR")
             Spacer(Modifier.height(10.dp))
 
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                actionTypes.chunked(2).forEach { row ->
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        row.forEach { type ->
-                            val isSel = type.label == selectedType
-                            Box(
+            when {
+                devicesError != null -> {
+                    Text("No se pudieron cargar tus dispositivos: $devicesError", fontSize = 12.sp, color = ErrorColor)
+                }
+                availableDevices.isEmpty() -> {
+                    Text("No tienes dispositivos vinculados todavía.", fontSize = 12.sp, color = Subtle)
+                }
+                else -> {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(18.dp))
+                            .background(Surface)
+                    ) {
+                        availableDevices.forEachIndexed { index, device ->
+                            val isSelected = device.id == deviceId
+                            Row(
                                 modifier = Modifier
-                                    .weight(1f)
-                                    .height(90.dp)
-                                    .clip(RoundedCornerShape(16.dp))
-                                    .background(if (isSel) CardSelected else Surface)
-                                    .border(
-                                        width = if (isSel) 1.5.dp else 1.dp,
-                                        color = if (isSel) BorderSelected else BorderColor,
-                                        shape = RoundedCornerShape(16.dp)
-                                    )
-                                    .clickable { selectedType = type.label }
-                                    .padding(16.dp)
+                                    .fillMaxWidth()
+                                    .clickable { deviceId = device.id }
+                                    .background(if (isSelected) CardSelected else Color.Transparent)
+                                    .padding(horizontal = 14.dp, vertical = 14.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Icon(
-                                        type.icon,
-                                        contentDescription = null,
-                                        tint = OnBackground,
-                                        modifier = Modifier.size(22.dp)
-                                    )
+                                Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        type.label,
+                                        device.displayName ?: device.deviceType ?: "Dispositivo",
                                         fontSize = 14.sp,
-                                        fontWeight = if (isSel) FontWeight.SemiBold else FontWeight.Normal,
+                                        fontWeight = FontWeight.Medium,
                                         color = OnBackground
                                     )
+                                    Text(
+                                        device.room ?: "Sin cuarto",
+                                        fontSize = 12.sp,
+                                        color = Subtle
+                                    )
                                 }
+                                if (isSelected) {
+                                    Icon(Icons.Outlined.Check, null, tint = Accent, modifier = Modifier.size(18.dp))
+                                }
+                            }
+                            if (index < availableDevices.lastIndex) {
+                                HorizontalDivider(modifier = Modifier.padding(horizontal = 14.dp), color = BorderColor, thickness = 0.5.dp)
                             }
                         }
                     }
@@ -192,40 +215,31 @@ fun ConfigureGestureScreen(
 
             Spacer(Modifier.height(22.dp))
 
-            // ── Detail rows ───────────────────────────────────────────────
-            SectionLabel("DETALLE")
-            Spacer(Modifier.height(10.dp))
+            // ── Acción ────────────────────────────────────────────────────
+            SectionLabel("ACCIÓN")
+            Spacer(Modifier.height(8.dp))
+            OutlinedTextField(
+                value = action,
+                onValueChange = { action = it },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                placeholder = { Text("Ej. Encender, Apagar, Reproducir música", color = Subtle) },
+                leadingIcon = { Icon(Icons.Outlined.SettingsRemote, contentDescription = null, tint = Subtle) },
+                shape = RoundedCornerShape(14.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor    = Surface,
+                    unfocusedContainerColor  = Surface,
+                    focusedBorderColor       = OnBackground,
+                    unfocusedBorderColor     = BorderColor,
+                    focusedTextColor         = OnBackground,
+                    unfocusedTextColor       = OnBackground,
+                    cursorColor              = OnBackground
+                )
+            )
 
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(Surface)
-            ) {
-                details.forEachIndexed { index, detail ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onDetailClick(detail.label) }
-                            .padding(horizontal = 14.dp, vertical = 14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Icon(detail.icon, null, tint = Subtle, modifier = Modifier.size(18.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(detail.label, fontSize = 11.sp, color = Subtle)
-                            Text(detail.value, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = OnBackground)
-                        }
-                        Icon(Icons.Outlined.ChevronRight, null, tint = Subtle, modifier = Modifier.size(18.dp))
-                    }
-                    if (index < details.lastIndex) {
-                        HorizontalDivider(
-                            modifier = Modifier.padding(horizontal = 14.dp),
-                            color = BorderColor,
-                            thickness = 0.5.dp
-                        )
-                    }
-                }
+            if (saveError != null) {
+                Spacer(Modifier.height(14.dp))
+                Text(saveError, fontSize = 12.sp, color = ErrorColor)
             }
         }
 
@@ -238,19 +252,24 @@ fun ConfigureGestureScreen(
                 .padding(horizontal = 20.dp, vertical = 16.dp)
         ) {
             Button(
-                onClick = { onSave(selectedType, emptyMap()) },
+                onClick = { onSave(name, deviceId, action) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(54.dp),
                 shape = RoundedCornerShape(14.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Accent)
+                colors = ButtonDefaults.buttonColors(containerColor = Accent),
+                enabled = canSave
             ) {
-                Text(
-                    "Guardar seña",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Color.White
-                )
+                if (isSaving) {
+                    CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
+                } else {
+                    Text(
+                        "Guardar seña",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color.White
+                    )
+                }
             }
         }
     }
@@ -272,5 +291,5 @@ private fun SectionLabel(text: String) {
 @Preview(showBackground = true, widthDp = 390, heightDp = 844)
 @Composable
 fun ConfigureGestureScreenPreview() {
-    ConfigureGestureScreen()
+    ConfigureGestureScreenContent(gestureName = "Mano abierta")
 }

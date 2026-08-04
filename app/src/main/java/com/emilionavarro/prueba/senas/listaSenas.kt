@@ -1,11 +1,7 @@
 package com.emilionavarro.prueba.senas
 
-
-
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -19,9 +15,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.emilionavarro.prueba.senas.data.network.GestureDto
+import com.emilionavarro.prueba.senas.viewmodel.GesturesViewModel
 
 // ── Color tokens ─────────────────────────────────────────────────────────────
 private val Background    = Color(0xFFEAE7E0)
@@ -30,61 +29,76 @@ private val OnBackground  = Color(0xFF1C1C1C)
 private val Subtle        = Color(0xFF7A7A7A)
 private val Accent        = Color(0xFF232320)
 private val BorderColor   = Color(0xFFDDDAD3)
-private val ToggleOn      = Color(0xFF232320)
-private val ToggleOff     = Color(0xFFCBC8C0)
-private val GifBadgeBg    = Color(0xFF2E332E)
-private val GestureCardBg = Color(0xFFE8E5DE)
+private val GestureIconBg = Color(0xFFE8E5DE)
 private val NavSelected   = Color(0xFFE4E1D9)
-private val ChipSelected  = Color(0xFF232320)
-private val TagBg         = Color(0xFFE4E1D9)
 
-// ── Data ──────────────────────────────────────────────────────────────────────
-data class GestureEntry(
-    val emoji: String,
+// ── UI model ──────────────────────────────────────────────────────────────────
+data class GestureListItem(
+    val id: String,
     val name: String,
-    val action: String,
-    val tag: String,
-    val uses: Int,
-    val isOn: Boolean,
+    val actionSummary: String,
+    val hasLinkedDevice: Boolean,
 )
 
-// ── Screen ────────────────────────────────────────────────────────────────────
+private fun GestureDto.toListItem(): GestureListItem = GestureListItem(
+    id = id.orEmpty(),
+    name = name,
+    actionSummary = if (!linkedAction.isNullOrBlank()) "→ $linkedAction" else "Sin acción vinculada",
+    hasLinkedDevice = !linkedDeviceId.isNullOrBlank()
+)
+
+// ── Screen (con estado / conectada al backend) ─────────────────────────────────
 @Composable
 fun GesturesScreen(
+    userId: String,
+    viewModel: GesturesViewModel,
     onAddGesture: () -> Unit = {},
-    onGestureClick: (GestureEntry) -> Unit = {},
+    onGestureClick: (GestureListItem) -> Unit = {},
     onNavInicio: () -> Unit = {},
     onNavDispositivos: () -> Unit = {},
     onNavSugerencias: () -> Unit = {},
     onNavPerfil: () -> Unit = {},
 ) {
-    val allGestures = remember {
-        mutableStateListOf(
-            GestureEntry("🤚", "Mano abierta", "→ Reproducir música · Spotify", "Música",  124, true),
-            GestureEntry("✊", "Puño cerrado", "→ Apagar todo · 4 dispositivos", "Escena",   86, true),
-            GestureEntry("✌️", "Paz",          "→ Siguiente canción · Spotify",  "Música",   67, true),
-            GestureEntry("👌", "OK",           "→ Confirmar rutina",             "Sistema",  42, true),
-            GestureEntry("🤙", "Llámame",      "→ Modo lectura · Sala",          "Escenas",  21, false),
-        )
+    val state = viewModel.uiState
+
+    LaunchedEffect(userId) {
+        if (userId.isNotBlank()) viewModel.loadGestures(userId)
     }
 
-    val toggleStates = remember {
-        mutableStateMapOf<String, Boolean>().also { map ->
-            allGestures.forEach { map[it.name] = it.isOn }
-        }
-    }
+    GesturesScreenContent(
+        isLoading    = state.isLoading,
+        errorMessage = state.error,
+        gestures     = state.gestures.map { it.toListItem() },
+        onAddGesture = onAddGesture,
+        onGestureClick = onGestureClick,
+        onNavInicio       = onNavInicio,
+        onNavSenas        = {},
+        onNavDispositivos = onNavDispositivos,
+        onNavSugerencias  = onNavSugerencias,
+        onNavPerfil       = onNavPerfil,
+    )
+}
 
-    val categories = listOf("Todas · ${allGestures.size}", "Música", "Luces", "Escenas")
-    var selectedCategory by remember { mutableStateOf(categories.first()) }
+// ── Screen (sin estado / puramente visual, usada por el Preview) ──────────────
+@Composable
+fun GesturesScreenContent(
+    isLoading: Boolean = false,
+    errorMessage: String? = null,
+    gestures: List<GestureListItem> = emptyList(),
+    onAddGesture: () -> Unit = {},
+    onGestureClick: (GestureListItem) -> Unit = {},
+    onNavInicio: () -> Unit = {},
+    onNavSenas: () -> Unit = {},
+    onNavDispositivos: () -> Unit = {},
+    onNavSugerencias: () -> Unit = {},
+    onNavPerfil: () -> Unit = {},
+) {
     var searchQuery by remember { mutableStateOf("") }
 
-    val filtered = allGestures.filter { g ->
-        val matchesSearch = searchQuery.isEmpty() ||
+    val filtered = gestures.filter { g ->
+        searchQuery.isEmpty() ||
                 g.name.contains(searchQuery, ignoreCase = true) ||
-                g.action.contains(searchQuery, ignoreCase = true)
-        val matchesCat = selectedCategory.startsWith("Todas") ||
-                g.tag.equals(selectedCategory, ignoreCase = true)
-        matchesSearch && matchesCat
+                g.actionSummary.contains(searchQuery, ignoreCase = true)
     }
 
     Scaffold(
@@ -122,7 +136,7 @@ fun GesturesScreen(
                         color = OnBackground
                     )
                     Text(
-                        "${allGestures.count { toggleStates[it.name] == true }} activas · 340 detecciones esta semana",
+                        "${gestures.size} señas guardadas",
                         fontSize = 13.sp,
                         color = Subtle
                     )
@@ -164,49 +178,41 @@ fun GesturesScreen(
                 )
             )
 
-            Spacer(Modifier.height(12.dp))
-
-            // ── Category filter chips ─────────────────────────────────────
-            Row(
-                modifier = Modifier.horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                categories.forEach { cat ->
-                    val isSel = cat == selectedCategory
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(if (isSel) ChipSelected else Surface)
-                            .border(
-                                width = if (isSel) 0.dp else 1.dp,
-                                color = BorderColor,
-                                shape = RoundedCornerShape(20.dp)
-                            )
-                            .clickable { selectedCategory = cat }
-                            .padding(horizontal = 16.dp, vertical = 8.dp)
-                    ) {
-                        Text(
-                            cat,
-                            fontSize = 13.sp,
-                            fontWeight = if (isSel) FontWeight.SemiBold else FontWeight.Normal,
-                            color = if (isSel) Color.White else OnBackground
-                        )
-                    }
-                }
-            }
-
             Spacer(Modifier.height(14.dp))
 
-            // ── Gesture list ──────────────────────────────────────────────
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                filtered.forEach { gesture ->
-                    val isOn = toggleStates[gesture.name] ?: gesture.isOn
-                    GestureCard(
-                        gesture  = gesture,
-                        isOn     = isOn,
-                        onToggle = { toggleStates[gesture.name] = it },
-                        onClick  = { onGestureClick(gesture) }
+            when {
+                isLoading -> {
+                    Box(Modifier.fillMaxWidth().padding(vertical = 50.dp), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = Accent)
+                    }
+                }
+
+                errorMessage != null -> {
+                    Text(
+                        "No se pudieron cargar tus señas: $errorMessage",
+                        color = Subtle,
+                        fontSize = 13.sp
                     )
+                }
+
+                filtered.isEmpty() -> {
+                    Text(
+                        if (gestures.isEmpty()) "Aún no tienes señas guardadas."
+                        else "No encontramos señas con ese criterio.",
+                        color = Subtle,
+                        fontSize = 13.sp
+                    )
+                }
+
+                else -> {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        filtered.forEach { gesture ->
+                            GestureCard(
+                                gesture = gesture,
+                                onClick = { onGestureClick(gesture) }
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -215,105 +221,64 @@ fun GesturesScreen(
 
 // ── Gesture card ──────────────────────────────────────────────────────────────
 @Composable
-private fun GestureCard(
-    gesture: GestureEntry,
-    isOn: Boolean,
-    onToggle: (Boolean) -> Unit,
-    onClick: () -> Unit,
-) {
+private fun GestureCard(gesture: GestureListItem, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(18.dp))
             .background(Surface)
             .clickable { onClick() }
-            .padding(12.dp),
+            .padding(14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // GIF thumbnail
         Box(
             modifier = Modifier
-                .size(60.dp)
+                .size(52.dp)
                 .clip(RoundedCornerShape(14.dp))
-                .background(GestureCardBg),
+                .background(GestureIconBg),
             contentAlignment = Alignment.Center
         ) {
-            Text(gesture.emoji, fontSize = 28.sp)
-            // GIF badge
-            Box(
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .padding(4.dp)
-                    .clip(RoundedCornerShape(4.dp))
-                    .background(GifBadgeBg)
-                    .padding(horizontal = 3.dp, vertical = 1.dp)
-            ) {
-                Text("GIF", fontSize = 7.sp, fontWeight = FontWeight.Bold, color = Color.White)
-            }
-            // Play icon
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(4.dp)
-                    .size(16.dp)
-                    .clip(RoundedCornerShape(50))
-                    .background(Color.White.copy(alpha = 0.85f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    Icons.Outlined.PlayArrow,
-                    contentDescription = null,
-                    tint = OnBackground,
-                    modifier = Modifier.size(10.dp)
-                )
-            }
+            Icon(
+                Icons.Outlined.PanTool,
+                contentDescription = null,
+                tint = OnBackground,
+                modifier = Modifier.size(24.dp)
+            )
         }
 
         Spacer(Modifier.width(12.dp))
 
-        // Info
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 gesture.name,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = OnBackground
+                color = OnBackground,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
             Text(
-                gesture.action,
+                gesture.actionSummary,
                 fontSize = 12.sp,
-                color = Subtle
+                color = Subtle,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
-            Spacer(Modifier.height(5.dp))
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Category tag
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(TagBg)
-                        .padding(horizontal = 8.dp, vertical = 3.dp)
-                ) {
-                    Text(gesture.tag, fontSize = 11.sp, color = OnBackground, fontWeight = FontWeight.Medium)
-                }
-                Text("${gesture.uses} usos", fontSize = 11.sp, color = Subtle)
+            if (!gesture.hasLinkedDevice) {
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "Sin dispositivo vinculado",
+                    fontSize = 11.sp,
+                    color = Color(0xFFB3413B)
+                )
             }
         }
 
-        Spacer(Modifier.width(8.dp))
-
-        Switch(
-            checked = isOn,
-            onCheckedChange = onToggle,
-            colors = SwitchDefaults.colors(
-                checkedThumbColor    = Color.White,
-                checkedTrackColor    = ToggleOn,
-                uncheckedThumbColor  = Color.White,
-                uncheckedTrackColor  = ToggleOff,
-                uncheckedBorderColor = ToggleOff
-            )
+        Icon(
+            Icons.Outlined.ChevronRight,
+            contentDescription = null,
+            tint = Subtle,
+            modifier = Modifier.size(18.dp)
         )
     }
 }
@@ -366,6 +331,11 @@ private fun GesturesBottomNavBar(
 @Preview(showBackground = true, widthDp = 390, heightDp = 844)
 @Composable
 fun GesturesScreenPreview() {
-    GesturesScreen()
+    GesturesScreenContent(
+        gestures = listOf(
+            GestureListItem("1", "Mano abierta", "→ Reproducir música", true),
+            GestureListItem("2", "Puño cerrado", "→ Apagar todo", true),
+            GestureListItem("3", "Paz", "Sin acción vinculada", false),
+        )
+    )
 }
-

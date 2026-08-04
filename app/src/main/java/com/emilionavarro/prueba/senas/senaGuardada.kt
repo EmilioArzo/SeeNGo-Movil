@@ -1,7 +1,5 @@
 package com.emilionavarro.prueba.senas
 
-
-
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -21,6 +19,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.emilionavarro.prueba.senas.viewmodel.GesturesViewModel
 
 // ── Color tokens ─────────────────────────────────────────────────────────────
 private val Background   = Color(0xFFEAE7E0)
@@ -30,16 +29,39 @@ private val Subtle       = Color(0xFF7A7A7A)
 private val Accent       = Color(0xFF232320)
 private val BorderColor  = Color(0xFFDDDAD3)
 private val SuccessGreen = Color(0xFF4A8C62)
-private val GifBadgeBg   = Color(0xFF2E332E)
 private val GestureCardBg= Color(0xFFE8E5DE)
 
-// ── Screen ────────────────────────────────────────────────────────────────────
+// ── Screen (con estado / conectada al ViewModel) ────────────────────────────────
 @Composable
 fun GestureSavedScreen(
+    viewModel: GesturesViewModel,
+    onTest: () -> Unit = {},
+    onBack: () -> Unit = {},
+) {
+    val state = viewModel.uiState
+    val gesture = state.savedGesture
+
+    GestureSavedScreenContent(
+        gestureName = gesture?.name ?: "Tu seña",
+        actionSummary = gesture?.linkedAction?.let { "→ $it" } ?: "Sin acción vinculada",
+        confirmText = if (gesture?.linkedAction != null)
+            "\"${gesture.name}\" ejecutará \"${gesture.linkedAction}\" cuando la detectemos."
+        else
+            "Guardamos \"${gesture?.name ?: ""}\". Puedes vincularle una acción cuando quieras.",
+        onTest = onTest,
+        onBack = {
+            viewModel.clearSaved()
+            onBack()
+        },
+    )
+}
+
+// ── Screen (sin estado / puramente visual, usada por el Preview) ──────────────
+@Composable
+fun GestureSavedScreenContent(
     gestureName: String    = "Mano abierta",
-    gestureEmoji: String   = "🤚",
     actionSummary: String  = "→ Spotify · Lo-fi para trabajar",
-    confirmText: String    = "\"Mano abierta\" reproducirá tu playlist de Spotify cuando la detectemos.",
+    confirmText: String    = "\"Mano abierta\" ejecutará esta acción cuando la detectemos.",
     onTest: () -> Unit     = {},
     onBack: () -> Unit     = {},
 ) {
@@ -115,7 +137,6 @@ fun GestureSavedScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    // GIF thumbnail
                     Box(
                         modifier = Modifier
                             .size(52.dp)
@@ -123,30 +144,7 @@ fun GestureSavedScreen(
                             .background(GestureCardBg),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(gestureEmoji, fontSize = 26.sp)
-                        // GIF badge
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.TopStart)
-                                .padding(3.dp)
-                                .clip(RoundedCornerShape(4.dp))
-                                .background(GifBadgeBg)
-                                .padding(horizontal = 3.dp, vertical = 1.dp)
-                        ) {
-                            Text("GIF", fontSize = 7.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                        }
-                        // Play badge
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.BottomEnd)
-                                .padding(3.dp)
-                                .size(14.dp)
-                                .clip(RoundedCornerShape(50))
-                                .background(Color.White.copy(alpha = 0.85f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(Icons.Outlined.PlayArrow, null, tint = OnBackground, modifier = Modifier.size(9.dp))
-                        }
+                        Icon(Icons.Outlined.PanTool, contentDescription = null, tint = OnBackground, modifier = Modifier.size(26.dp))
                     }
 
                     Column {
@@ -166,9 +164,10 @@ fun GestureSavedScreen(
 
                 Spacer(Modifier.height(16.dp))
 
-                // ── Primary CTA ───────────────────────────────────────────
+                // ── Primary CTA (deshabilitado: no hay endpoint de prueba en vivo) ──
                 Button(
                     onClick = onTest,
+                    enabled = false,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(54.dp),
@@ -221,5 +220,5 @@ fun GestureSavedScreen(
 @Preview(showBackground = true, widthDp = 390, heightDp = 844)
 @Composable
 fun GestureSavedScreenPreview() {
-    GestureSavedScreen()
+    GestureSavedScreenContent()
 }

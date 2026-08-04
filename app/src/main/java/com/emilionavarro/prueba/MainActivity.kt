@@ -37,6 +37,8 @@ import com.emilionavarro.prueba.senas.ConfigureGestureScreen
 import com.emilionavarro.prueba.senas.GestureDetailScreen
 import com.emilionavarro.prueba.senas.GestureSavedScreen
 import com.emilionavarro.prueba.senas.GesturesScreen
+import com.emilionavarro.prueba.senas.viewmodel.GesturesViewModel
+import com.emilionavarro.prueba.senas.viewmodel.GesturesViewModelFactory
 import com.emilionavarro.prueba.sugerencias.RoutineActivatedScreen
 import com.emilionavarro.prueba.sugerencias.RoutineDetailScreen
 import com.emilionavarro.prueba.sugerencias.SuggestionsScreen
@@ -117,6 +119,10 @@ fun AppNavHost(navController: NavHostController) {
     // ViewModel único compartido entre las 3 pantallas del módulo de Sugerencias.
     // Ver SuggestionsViewModel para el porqué (el backend no tiene GET /suggestions/{id}).
     val suggestionsViewModel: SuggestionsViewModel = viewModel(factory = SuggestionsViewModelFactory())
+
+    // Igual que en Sugerencias: un solo ViewModel compartido entre las 4 pantallas
+    // del módulo de Señas, porque el backend tampoco tiene GET /api/gestures/{id}.
+    val gesturesViewModel: GesturesViewModel = viewModel(factory = GesturesViewModelFactory())
 
     // Decide start destination: if already logged in skip auth
     val startDest = if (session.isLoggedIn()) Routes.HOME else Routes.SPLASH
@@ -206,13 +212,16 @@ fun AppNavHost(navController: NavHostController) {
         }
 
         composable(Routes.GESTURES) {
+            val userId = session.getUserId() ?: ""
             GesturesScreen(
+                userId    = userId,
+                viewModel = gesturesViewModel,
                 onAddGesture   = {
                     // New gesture: use placeholder id "new"
                     navController.navigate(Routes.configureGesture("new"))
                 },
                 onGestureClick = { gesture ->
-                    navController.navigate(Routes.gestureDetail(gesture.name))
+                    navController.navigate(Routes.gestureDetail(gesture.id))
                 },
                 onNavInicio       = { navController.navigate(Routes.HOME) },
                 onNavDispositivos = { navController.navigate(Routes.DEVICES) },
@@ -361,13 +370,14 @@ fun AppNavHost(navController: NavHostController) {
         composable(Routes.GESTURE_DETAIL) { backStack ->
             val gestureId = backStack.arguments?.getString("gestureId") ?: ""
             GestureDetailScreen(
+                gestureId      = gestureId,
+                viewModel      = gesturesViewModel,
                 onBack         = { navController.popBackStack() },
                 onMore         = { /* TODO: options bottom sheet */ },
                 onChangeAction = {
                     navController.navigate(Routes.configureGesture(gestureId))
                 },
-                onActionClick  = { /* navigate to linked device/service */ },
-                onTest         = { /* TODO: trigger gesture test */ },
+                onTest         = { /* Sin endpoint de backend todavía: botón deshabilitado en UI */ },
                 onDelete       = {
                     navController.navigate(Routes.GESTURES) {
                         popUpTo(Routes.GESTURES) { inclusive = false }
@@ -378,21 +388,24 @@ fun AppNavHost(navController: NavHostController) {
 
         composable(Routes.CONFIGURE_GESTURE) { backStack ->
             val gestureId = backStack.arguments?.getString("gestureId") ?: ""
+            val userId = session.getUserId() ?: ""
             ConfigureGestureScreen(
-                onBack = { navController.popBackStack() },
-                onSave = { actionType, details ->
+                gestureId = gestureId,
+                userId    = userId,
+                viewModel = gesturesViewModel,
+                onBack    = { navController.popBackStack() },
+                onSaved   = {
                     navController.navigate(Routes.gestureSaved(gestureId)) {
                         popUpTo(Routes.CONFIGURE_GESTURE) { inclusive = true }
                     }
                 },
-                onDetailClick = { /* open sub-picker for that field */ }
             )
         }
 
-        composable(Routes.GESTURE_SAVED) { backStack ->
-            val gestureId = backStack.arguments?.getString("gestureId") ?: ""
+        composable(Routes.GESTURE_SAVED) {
             GestureSavedScreen(
-                onTest = { /* TODO: trigger live test */ },
+                viewModel = gesturesViewModel,
+                onTest = { /* Sin endpoint de backend todavía: botón deshabilitado en UI */ },
                 onBack = {
                     navController.navigate(Routes.GESTURES) {
                         popUpTo(Routes.GESTURES) { inclusive = false }

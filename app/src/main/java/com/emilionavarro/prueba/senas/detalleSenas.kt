@@ -1,9 +1,6 @@
 package com.emilionavarro.prueba.senas
 
-
-
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -21,6 +18,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.emilionavarro.prueba.dispositivos.data.ApiResult
+import com.emilionavarro.prueba.dispositivos.data.DeviceRepository
+import com.emilionavarro.prueba.senas.viewmodel.GesturesViewModel
 
 // ── Color tokens ─────────────────────────────────────────────────────────────
 private val Background   = Color(0xFFEAE7E0)
@@ -30,42 +30,107 @@ private val Subtle       = Color(0xFF7A7A7A)
 private val Accent       = Color(0xFF232320)
 private val BorderColor  = Color(0xFFDDDAD3)
 private val PreviewBg    = Color(0xFFE8E5DE)
-private val GifBadgeBg   = Color(0xFF2E332E)
-private val SpotifyGreen = Color(0xFF1DB954)
 private val SpotifyBg    = Color(0xFFD6EED8)
 private val DeleteRed    = Color(0xFFB85C38)
 
 // ── Data ──────────────────────────────────────────────────────────────────────
 data class GestureDetail(
-    val name: String          = "Mano abierta",
-    val duration: String      = "1.4s",
-    val emoji: String         = "🤚",
-    val actionName: String    = "Reproducir música",
-    val actionSource: String  = "Spotify · \"Lo-fi para trabajar\"",
-    val category: String      = "Música",
-    val status: String        = "Activa",
-    val detections: String    = "124 totales",
-    val lastSeen: String      = "Hoy · 09:12",
-    val confidence: String    = "94% promedio",
+    val name: String,
+    val actionSummary: String,
+    val deviceName: String?,
+    val createdAt: String?,
 )
 
-// ── Screen ────────────────────────────────────────────────────────────────────
+// ── Screen (con estado / conectada al backend) ─────────────────────────────────
 @Composable
 fun GestureDetailScreen(
-    detail: GestureDetail = GestureDetail(),
+    gestureId: String,
     onBack: () -> Unit = {},
     onMore: () -> Unit = {},
     onChangeAction: () -> Unit = {},
-    onActionClick: () -> Unit = {},
+    onTest: () -> Unit = {},
+    onDelete: () -> Unit = {},
+    viewModel: GesturesViewModel,
+) {
+    val state = viewModel.uiState
+
+    LaunchedEffect(gestureId) {
+        if (state.selectedGesture?.id != gestureId) {
+            viewModel.selectGesture(gestureId)
+        }
+    }
+
+    val gesture = state.selectedGesture
+
+    // El backend no manda el nombre del dispositivo vinculado, solo su id.
+    // Lo resolvemos aquí reutilizando el DeviceRepository del módulo de dispositivos.
+    var deviceName by remember(gesture?.linkedDeviceId) { mutableStateOf<String?>(null) }
+    LaunchedEffect(gesture?.linkedDeviceId) {
+        val deviceId = gesture?.linkedDeviceId
+        if (!deviceId.isNullOrBlank()) {
+            when (val result = DeviceRepository().getDeviceById(deviceId)) {
+                is ApiResult.Success -> deviceName = result.data.displayName ?: result.data.deviceType
+                is ApiResult.Error -> deviceName = null
+            }
+        } else {
+            deviceName = null
+        }
+    }
+
+    LaunchedEffect(state.wasDeleted) {
+        if (state.wasDeleted) onDelete()
+    }
+
+    if (state.isLoading && gesture == null) {
+        Box(Modifier.fillMaxSize().background(Background), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator(color = Accent)
+        }
+        return
+    }
+
+    if (gesture == null) {
+        Box(Modifier.fillMaxSize().background(Background).padding(20.dp), contentAlignment = Alignment.Center) {
+            Text("No se encontró esta seña.", color = Subtle, fontSize = 14.sp)
+        }
+        return
+    }
+
+    GestureDetailScreenContent(
+        detail = GestureDetail(
+            name = gesture.name,
+            actionSummary = gesture.linkedAction?.let { "→ $it" } ?: "Sin acción vinculada",
+            deviceName = deviceName,
+            createdAt = gesture.createdAt
+        ),
+        isDeleting = state.isDeleting,
+        onBack = onBack,
+        onMore = onMore,
+        onChangeAction = onChangeAction,
+        onTest = onTest,
+        onDelete = { viewModel.deleteSelected(onDeleted = onDelete) },
+    )
+}
+
+// ── Screen (sin estado / puramente visual, usada por el Preview) ──────────────
+@Composable
+fun GestureDetailScreenContent(
+    detail: GestureDetail = GestureDetail(
+        name = "Mano abierta",
+        actionSummary = "→ Reproducir música",
+        deviceName = "Bocina Sala",
+        createdAt = null
+    ),
+    isDeleting: Boolean = false,
+    onBack: () -> Unit = {},
+    onMore: () -> Unit = {},
+    onChangeAction: () -> Unit = {},
     onTest: () -> Unit = {},
     onDelete: () -> Unit = {},
 ) {
-    val detailRows = listOf(
-        "Categoría"   to detail.category,
-        "Estado"      to detail.status,
-        "Detecciones" to detail.detections,
-        "Última vez"  to detail.lastSeen,
-        "Confianza"   to detail.confidence,
+    val detailRows = listOfNotNull(
+        detail.deviceName?.let { "Dispositivo vinculado" to it },
+        "Acción" to (if (detail.actionSummary == "Sin acción vinculada") detail.actionSummary else detail.actionSummary.removePrefix("→ ")),
+        detail.createdAt?.let { "Creada" to it },
     )
 
     Box(
@@ -113,53 +178,21 @@ fun GestureDetailScreen(
 
             Spacer(Modifier.height(16.dp))
 
-            // ── GIF preview ───────────────────────────────────────────────
+            // ── Preview placeholder ──────────────────────────────────────
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(220.dp)
+                    .height(180.dp)
                     .clip(RoundedCornerShape(20.dp))
                     .background(PreviewBg),
                 contentAlignment = Alignment.Center
             ) {
-                // Emoji placeholder (replace with actual GIF/video player)
-                Text(detail.emoji, fontSize = 90.sp)
-
-                // GIF badge top-left
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .padding(12.dp)
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(GifBadgeBg)
-                        .padding(horizontal = 6.dp, vertical = 3.dp)
-                ) {
-                    Text(
-                        "GIF · ${detail.duration}",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color.White
-                    )
-                }
-
-                // Play button bottom-right
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(12.dp)
-                        .size(36.dp)
-                        .clip(RoundedCornerShape(50))
-                        .background(Color.White.copy(alpha = 0.9f))
-                        .clickable { onTest() },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        Icons.Outlined.PlayArrow,
-                        contentDescription = "Reproducir",
-                        tint = OnBackground,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
+                Icon(
+                    Icons.Outlined.PanTool,
+                    contentDescription = null,
+                    tint = OnBackground,
+                    modifier = Modifier.size(64.dp)
+                )
             }
 
             Spacer(Modifier.height(20.dp))
@@ -193,11 +226,10 @@ fun GestureDetailScreen(
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(16.dp))
                     .background(Surface)
-                    .clickable { onActionClick() }
+                    .clickable { onChangeAction() }
                     .padding(14.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Spotify icon box
                 Box(
                     modifier = Modifier
                         .size(42.dp)
@@ -206,16 +238,16 @@ fun GestureDetailScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        Icons.Outlined.GraphicEq,
+                        Icons.Outlined.SettingsRemote,
                         contentDescription = null,
-                        tint = SpotifyGreen,
+                        tint = OnBackground,
                         modifier = Modifier.size(22.dp)
                     )
                 }
                 Spacer(Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(detail.actionName, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = OnBackground)
-                    Text(detail.actionSource, fontSize = 12.sp, color = Subtle)
+                    Text(detail.actionSummary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = OnBackground)
+                    Text(detail.deviceName ?: "Sin dispositivo vinculado", fontSize = 12.sp, color = Subtle)
                 }
                 Icon(Icons.Outlined.ChevronRight, null, tint = Subtle, modifier = Modifier.size(18.dp))
             }
@@ -223,44 +255,46 @@ fun GestureDetailScreen(
             Spacer(Modifier.height(20.dp))
 
             // ── Details table ─────────────────────────────────────────────
-            Text(
-                "DETALLES",
-                fontSize = 10.sp,
-                fontWeight = FontWeight.SemiBold,
-                letterSpacing = 1.sp,
-                color = Subtle
-            )
+            if (detailRows.isNotEmpty()) {
+                Text(
+                    "DETALLES",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = 1.sp,
+                    color = Subtle
+                )
 
-            Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(8.dp))
 
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(Surface)
-            ) {
-                detailRows.forEachIndexed { index, (label, value) ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 13.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(label, fontSize = 14.sp, color = Subtle)
-                        Text(value, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = OnBackground)
-                    }
-                    if (index < detailRows.lastIndex) {
-                        HorizontalDivider(
-                            modifier = Modifier.padding(horizontal = 16.dp),
-                            color = BorderColor,
-                            thickness = 0.5.dp
-                        )
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(Surface)
+                ) {
+                    detailRows.forEachIndexed { index, (label, value) ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 13.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(label, fontSize = 14.sp, color = Subtle)
+                            Text(value, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = OnBackground)
+                        }
+                        if (index < detailRows.lastIndex) {
+                            HorizontalDivider(
+                                modifier = Modifier.padding(horizontal = 16.dp),
+                                color = BorderColor,
+                                thickness = 0.5.dp
+                            )
+                        }
                     }
                 }
-            }
 
-            Spacer(Modifier.height(20.dp))
+                Spacer(Modifier.height(20.dp))
+            }
 
             // ── Shortcuts ─────────────────────────────────────────────────
             Text(
@@ -277,9 +311,11 @@ fun GestureDetailScreen(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Test button
+                // Test button — deshabilitado: el backend aún no expone un endpoint
+                // para probar/ejecutar un gesto en vivo (a diferencia de las rutinas).
                 OutlinedButton(
                     onClick = onTest,
+                    enabled = false,
                     modifier = Modifier
                         .weight(1f)
                         .height(50.dp),
@@ -298,6 +334,7 @@ fun GestureDetailScreen(
                 // Delete button
                 OutlinedButton(
                     onClick = onDelete,
+                    enabled = !isDeleting,
                     modifier = Modifier
                         .weight(1f)
                         .height(50.dp),
@@ -308,9 +345,13 @@ fun GestureDetailScreen(
                         contentColor   = DeleteRed
                     )
                 ) {
-                    Icon(Icons.Outlined.DeleteOutline, null, tint = DeleteRed, modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text("Eliminar", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = DeleteRed)
+                    if (isDeleting) {
+                        CircularProgressIndicator(modifier = Modifier.size(16.dp), color = DeleteRed, strokeWidth = 2.dp)
+                    } else {
+                        Icon(Icons.Outlined.DeleteOutline, null, tint = DeleteRed, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("Eliminar", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = DeleteRed)
+                    }
                 }
             }
         }
@@ -321,5 +362,5 @@ fun GestureDetailScreen(
 @Preview(showBackground = true, widthDp = 390, heightDp = 844)
 @Composable
 fun GestureDetailScreenPreview() {
-    GestureDetailScreen()
+    GestureDetailScreenContent()
 }
