@@ -13,6 +13,13 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
+data class ScannedDevice(
+    val id: String,
+    val name: String,
+    val model: String,
+    val ip: String
+)
+
 data class FoundDevicesUiState(
     val isScanning: Boolean = false,
     val devices: List<ScannedDevice> = emptyList(),
@@ -20,6 +27,7 @@ data class FoundDevicesUiState(
     val linkSuccess: Boolean = false,
     val errorMessage: String? = null
 )
+
 
 class FoundDevicesViewModel(
     private val repository: DeviceRepository = DeviceRepository(),
