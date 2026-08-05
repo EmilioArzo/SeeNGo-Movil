@@ -24,7 +24,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.delay
+import com.emilionavarro.prueba.dispositivos.data.DiscoveredDevice
 
 // ── Color tokens ─────────────────────────────────────────────────────────────
 private val Background      = Color(0xFFEAE7E0)
@@ -39,9 +39,6 @@ private val ProgressInact   = Color(0xFFD4D0C8)
 private val GreenDot        = Color(0xFF4A9B6F)
 private val DeviceBadgeBg   = Color(0xFFF2EFEA)
 
-// ── Data ──────────────────────────────────────────────────────────────────────
-data class FoundDevice(val id: String, val name: String)
-
 // ── Screen ────────────────────────────────────────────────────────────────────
 @Composable
 fun ScanNetworkScreen(
@@ -51,10 +48,13 @@ fun ScanNetworkScreen(
     subnet: String = "Red local",
     onBack: () -> Unit = {},
     onCancel: () -> Unit = {},
-    onViewFound: () -> Unit = {}, // ya no necesita la lista ni un scanId
+    onViewFound: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
+    val foundDevices = uiState.devices
+    val isScanning = uiState.isScanningWifi || uiState.isScanningBluetooth
+
     LaunchedEffect(Unit) { viewModel.scanAll(context) }
     DisposableEffect(Unit) { onDispose { /* el scan sigue vivo: se detiene en FoundDevicesScreen */ } }
 
@@ -95,7 +95,7 @@ fun ScanNetworkScreen(
                         color = OnBackground
                     )
                     Text(
-                        "Paso $currentStep de $totalSteps · WiFi local",
+                        "Paso $currentStep de $totalSteps · WiFi y Bluetooth",
                         fontSize = 12.sp,
                         color = Subtle
                     )
@@ -160,23 +160,32 @@ fun ScanNetworkScreen(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
-                    "Escaneando mDNS...",
+                    if (isScanning) "Escaneando WiFi y Bluetooth..." else "Escaneo detenido",
                     fontSize = 17.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = OnBackground
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    "${foundDevices.size} dispositivos encontrados · sigue buscando",
+                    "${foundDevices.size} dispositivos encontrados" +
+                            if (isScanning) " · sigue buscando" else "",
                     fontSize = 13.sp,
                     color = Subtle
                 )
                 Spacer(Modifier.height(2.dp))
                 Text(
-                    "$subnet  ·  $scannedCount / $totalCount",
+                    subnet,
                     fontSize = 11.sp,
                     color = Color(0xFFAAAAAA)
                 )
+                if (uiState.errorMessage != null) {
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        uiState.errorMessage ?: "",
+                        fontSize = 12.sp,
+                        color = Color(0xFFA33C3C)
+                    )
+                }
             }
         }
 
@@ -208,7 +217,7 @@ fun ScanNetworkScreen(
 
             // View found
             Button(
-                onClick = { onViewFound(foundDevices) },
+                onClick = onViewFound,
                 modifier = Modifier
                     .weight(2f)
                     .height(52.dp),
@@ -357,5 +366,6 @@ private fun DeviceBadge(name: String) {
 @Preview(showBackground = true, widthDp = 390, heightDp = 844)
 @Composable
 fun ScanNetworkScreenPreview() {
-    ScanNetworkScreen()
+    val previewViewModel = remember { DeviceDiscoveryViewModel(userId = "preview-user") }
+    ScanNetworkScreen(viewModel = previewViewModel)
 }
