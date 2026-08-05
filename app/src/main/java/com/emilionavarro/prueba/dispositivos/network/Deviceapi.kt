@@ -113,6 +113,9 @@ interface DeviceApiService {
 
     @GET("api/devices/scan/{scanId}")
     suspend fun getScanResults(@Path("scanId") scanId: String): Response<ScanResultResponse>
+
+    @POST("api/integrations/spotify/token")
+    suspend fun storeSpotifyToken(@Body dto: SpotifyTokenDto): Response<MessageResponse>
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -139,3 +142,11 @@ object ApiClient {
             .create(DeviceApiService::class.java)
     }
 }
+
+// Coincide con SpotifyTokenDto(string UserId, string AccessToken, string RefreshToken, DateTime ExpiresAt)
+data class SpotifyTokenDto(
+    val userId: String,
+    val accessToken: String,
+    val refreshToken: String,
+    val expiresAt: String // ISO-8601, ej: Instant.now().toString()
+)

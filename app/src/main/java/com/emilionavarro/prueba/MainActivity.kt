@@ -13,6 +13,9 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import kotlinx.coroutines.delay
 
+import android.content.Intent
+import com.emilionavarro.prueba.dispositivos.data.spotify.SpotifyAuthBridge
+
 import com.emilionavarro.prueba.autenticacion.ForgotPasswordScreen
 import com.emilionavarro.prueba.autenticacion.LoginScreen
 import com.emilionavarro.prueba.autenticacion.NewPasswordScreen
@@ -51,10 +54,16 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        SpotifyAuthBridge.handleIntent(intent) // por si llega "en frío"
         setContent {
             val navController = rememberNavController()
             AppNavHost(navController = navController)
         }
+    }
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        SpotifyAuthBridge.handleIntent(intent) // aquí llega el redirect normal desde el navegador
     }
 }
 
@@ -193,22 +202,20 @@ fun AppNavHost(navController: NavHostController) {
         // ══ MAIN TABS ════════════════════════════════════════════════════════
 
         composable(Routes.HOME) {
-            var ready by remember { mutableStateOf(false) }
-            LaunchedEffect(Unit) {
-                delay(300) // tiempo mínimo para evitar flash
-                ready = true
-            }
-            if (!ready) HomeScreenSkeleton()
-            else
-                HomeScreen(
-                    onNavInicio       = { /* already here */ },
-                    onNavSenas        = { navController.navigate(Routes.GESTURES) },
-                    onNavDispositivos = { navController.navigate(Routes.DEVICES) },
-                    onNavSugerencias  = { navController.navigate(Routes.SUGGESTIONS) },
-                    onNavPerfil       = { navController.navigate(Routes.PROFILE) },
-                    onNotifications   = { /* TODO: notifications screen */ },
-                    onVerTodos        = { navController.navigate(Routes.DEVICES) }
-                )
+            val userId   = session.getUserId() ?: ""
+            val userName = session.getUserName() ?: ""
+            HomeScreen(
+                userId            = userId,
+                userName          = userName,
+                onNavInicio       = { /* ya estás aquí */ },
+                onNavSenas        = { navController.navigate(Routes.GESTURES) },
+                onNavDispositivos = { navController.navigate(Routes.DEVICES) },
+                onNavSugerencias  = { navController.navigate(Routes.SUGGESTIONS) },
+                onNavPerfil       = { navController.navigate(Routes.PROFILE) },
+                onNotifications   = { navController.navigate(Routes.SUGGESTIONS) },
+                onVerTodos        = { navController.navigate(Routes.DEVICES) },
+                onRoutineClick    = { routineId -> navController.navigate(Routes.routineDetail(routineId)) }
+            )
         }
 
         composable(Routes.GESTURES) {

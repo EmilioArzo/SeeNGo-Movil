@@ -16,7 +16,13 @@ class SessionManager(context: Context) {
         private const val KEY_USER_NAME = "user_name"
         private const val KEY_USER_EMAIL= "user_email"
         private const val KEY_USER_ROLE = "user_role"
+        private const val KEY_SPOTIFY_LINKED = "spotify_linked"
     }
+
+    fun saveSpotifyLinked(linked: Boolean) {
+        prefs.edit().putBoolean(KEY_SPOTIFY_LINKED, linked).apply()
+    }
+    fun isSpotifyLinked(): Boolean = prefs.getBoolean(KEY_SPOTIFY_LINKED, false)
 
     fun saveSession(token: String, id: String, name: String, email: String, role: String) {
         prefs.edit()
@@ -37,4 +43,6 @@ class SessionManager(context: Context) {
     fun isLoggedIn(): Boolean   = getToken() != null
 
     fun clearSession() = prefs.edit().clear().apply()
+
+
 }

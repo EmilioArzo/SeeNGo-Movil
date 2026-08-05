@@ -15,12 +15,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.emilionavarro.prueba.autenticacion.data.local.SessionManager
 
 // ── Color tokens ─────────────────────────────────────────────────────────────
 private val Background = Color(0xFFEAE7E0)
@@ -34,6 +35,9 @@ private val ToggleOn = Color(0xFF232320)
 private val ToggleOff = Color(0xFFCBC8C0)
 private val IconBg = Color(0xFFE4E1D9)
 private val NavSelected = Color(0xFFE4E1D9)
+private val SpotifyGreen = Color(0xFF1DB954)
+private val SpotifyLinkedBg = Color(0xFFD6EAD8)
+private val ErrorRed = Color(0xFFD94F3D)
 
 // ── Data models ───────────────────────────────────────────────────────────────
 data class DeviceItem(
@@ -59,10 +63,15 @@ fun DevicesScreen(
     onNavSenas: () -> Unit = {},
     onNavSugerencias: () -> Unit = {},
     onNavPerfil: () -> Unit = {},
-    onDeviceClick: (String) -> Unit = {}, // navega al detalle
-    viewModel: DevicesViewModel = viewModel(factory = viewModelFactory { DevicesViewModel(userId = userId) })
+    onDeviceClick: (String) -> Unit = {},
+    viewModel: DevicesViewModel = run {
+        val context = LocalContext.current
+        val session = remember { SessionManager(context) }
+        viewModel(factory = viewModelFactory { DevicesViewModel(userId = userId, session = session) })
+    }
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
 
     Scaffold(
         containerColor = Background,
@@ -111,6 +120,16 @@ fun DevicesScreen(
                 }
             }
 
+            Spacer(Modifier.height(16.dp))
+
+            // ── Vincular Spotify ──────────────────────────────────────────
+            SpotifyLinkCard(
+                isLinked = uiState.isSpotifyLinked,
+                isLinking = uiState.isLinkingSpotify,
+                errorMessage = uiState.spotifyError,
+                onLinkClick = { viewModel.startSpotifyLink(context) }
+            )
+
             Spacer(Modifier.height(20.dp))
 
             when {
@@ -141,6 +160,67 @@ fun DevicesScreen(
                     }
                 }
             }
+        }
+    }
+}
+
+// ── Spotify link card ─────────────────────────────────────────────────────────
+@Composable
+private fun SpotifyLinkCard(
+    isLinked: Boolean,
+    isLinking: Boolean,
+    errorMessage: String?,
+    onLinkClick: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(if (isLinked) SpotifyLinkedBg else Surface)
+            .padding(14.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(SpotifyGreen.copy(alpha = if (isLinked) 1f else 0.15f), RoundedCornerShape(12.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Outlined.GraphicEq,
+                    contentDescription = null,
+                    tint = if (isLinked) Color.White else SpotifyGreen,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    if (isLinked) "Spotify vinculado" else "Conecta tu Spotify",
+                    fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = OnBackground
+                )
+                Text(
+                    if (isLinked) "Ya puedes controlar tu música con señas" else "Vincula tu cuenta para reproducir música con gestos",
+                    fontSize = 12.sp, color = Subtle
+                )
+            }
+            when {
+                isLinking -> CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = Accent)
+                isLinked -> Icon(Icons.Outlined.CheckCircle, contentDescription = null, tint = Color(0xFF4A8C62), modifier = Modifier.size(20.dp))
+                else -> Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Accent)
+                        .clickable { onLinkClick() }
+                        .padding(horizontal = 14.dp, vertical = 8.dp)
+                ) {
+                    Text("Vincular", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                }
+            }
+        }
+        if (errorMessage != null) {
+            Spacer(Modifier.height(8.dp))
+            Text(errorMessage, fontSize = 12.sp, color = ErrorRed)
         }
     }
 }
@@ -253,8 +333,3 @@ private fun BottomNavBar(
         }
     }
 }
-
-// ── Preview ───────────────────────────────────────────────────────────────────
-// Nota: el preview ya no puede usar datos falsos por defecto porque la pantalla
-// ahora depende del ViewModel/backend. Si necesitas un preview visual rápido,
-// crea una versión "Content" separada que reciba List<RoomSection> directamente.

@@ -47,6 +47,10 @@ class DeviceRepository(
         api.syncMdnsDevices(devices)
     }
 
+    suspend fun linkSpotify(dto: SpotifyTokenDto): ApiResult<MessageResponse> = safeCall {
+        api.storeSpotifyToken(dto)
+    }
+
     // ── Helper ───────────────────────────────────────────────────────────
     private suspend fun <T> safeCall(block: suspend () -> retrofit2.Response<T>): ApiResult<T> {
         return try {
