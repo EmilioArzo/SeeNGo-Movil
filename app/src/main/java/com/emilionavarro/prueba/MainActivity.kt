@@ -24,6 +24,7 @@ import com.emilionavarro.prueba.autenticacion.SplashScreen
 import com.emilionavarro.prueba.autenticacion.data.local.SessionManager
 import com.emilionavarro.prueba.dispositivos.ConfigureDeviceScreen
 import com.emilionavarro.prueba.dispositivos.DeviceDetailScreen
+import com.emilionavarro.prueba.dispositivos.DeviceDiscoveryViewModel
 import com.emilionavarro.prueba.dispositivos.DeviceSuccessScreen
 import com.emilionavarro.prueba.dispositivos.DevicesScreen
 import com.emilionavarro.prueba.dispositivos.FoundDevicesScreen
@@ -85,10 +86,14 @@ object Routes {
 
     // Device flow
     const val DEVICE_DETAIL     = "device_detail/{deviceId}"
-    const val SCAN_NETWORK      = "scan_network"
-    const val FOUND_DEVICES     = "found_devices/{scanId}"
+    // Routes: quita el parámetro {scanId}, ya no se necesita
+    const val SCAN_NETWORK  = "scan_network"
+    const val FOUND_DEVICES = "found_devices"
     const val CONFIGURE_DEVICE  = "configure_device/{scanId}"
     const val DEVICE_SUCCESS    = "device_success/{deviceId}"
+    // dentro de object Routes
+    const val BLUETOOTH_SCAN = "bluetooth_scan"
+
 
     // Gesture flow
     const val GESTURE_DETAIL    = "gesture_detail/{gestureId}"
@@ -128,6 +133,11 @@ fun AppNavHost(navController: NavHostController) {
     // ViewModel único compartido entre las 3 pantallas del módulo de Sugerencias.
     // Ver SuggestionsViewModel para el porqué (el backend no tiene GET /suggestions/{id}).
     val suggestionsViewModel: SuggestionsViewModel = viewModel(factory = SuggestionsViewModelFactory())
+
+    // En AppNavHost, junto a gesturesViewModel/suggestionsViewModel:
+    val discoveryViewModel: DeviceDiscoveryViewModel = viewModel(
+        factory = viewModelFactory { DeviceDiscoveryViewModel(userId = session.getUserId() ?: "") }
+    )
 
     // Igual que en Sugerencias: un solo ViewModel compartido entre las 4 pantallas
     // del módulo de Señas, porque el backend tampoco tiene GET /api/gestures/{id}.
@@ -317,23 +327,20 @@ fun AppNavHost(navController: NavHostController) {
         }
 
         composable(Routes.SCAN_NETWORK) {
-            val userId = session.getUserId() ?: ""
             ScanNetworkScreen(
-                onBack   = { navController.popBackStack() },
-                onCancel = { navController.popBackStack() },
-                onViewFound = { scanId ->
-                    navController.navigate(Routes.foundDevices(scanId.toString()))
-                },
+                viewModel = discoveryViewModel,
+                onBack    = { navController.popBackStack() },
+                onCancel  = { navController.popBackStack() },
+                onViewFound = { navController.navigate(Routes.FOUND_DEVICES) },
             )
         }
 
-        composable(Routes.FOUND_DEVICES) { backStack ->
-            val scanId = backStack.arguments?.getString("scanId") ?: ""
-            val userId = session.getUserId() ?: ""
+        composable(Routes.FOUND_DEVICES) {
             FoundDevicesScreen(
-                userId   = userId,
-                onBack   = { navController.popBackStack() },
-                onLinked = {
+                userId    = session.getUserId() ?: "",
+                viewModel = discoveryViewModel,
+                onBack    = { navController.popBackStack() },
+                onLinked  = {
                     navController.navigate(Routes.DEVICE_SUCCESS.replace("{deviceId}", "new")) {
                         popUpTo(Routes.SCAN_NETWORK) { inclusive = true }
                     }
@@ -480,6 +487,19 @@ fun AppNavHost(navController: NavHostController) {
                     suggestionsViewModel.clearActivation()
                     navController.navigate(Routes.SUGGESTIONS) {
                         popUpTo(Routes.SUGGESTIONS) { inclusive = false }
+                    }
+                }
+            )
+        }
+
+        composable(Routes.BLUETOOTH_SCAN) {
+            val userId = session.getUserId() ?: ""
+            com.emilionavarro.prueba.dispositivos.bluetooth.BluetoothScanScreen(
+                userId = userId,
+                onBack = { navController.popBackStack() },
+                onLinked = {
+                    navController.navigate(Routes.DEVICE_SUCCESS.replace("{deviceId}", "new")) {
+                        popUpTo(Routes.BLUETOOTH_SCAN) { inclusive = true }
                     }
                 }
             )

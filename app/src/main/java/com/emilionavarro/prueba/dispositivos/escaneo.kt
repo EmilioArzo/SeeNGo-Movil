@@ -19,6 +19,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -44,19 +45,19 @@ data class FoundDevice(val id: String, val name: String)
 // ── Screen ────────────────────────────────────────────────────────────────────
 @Composable
 fun ScanNetworkScreen(
+    viewModel: DeviceDiscoveryViewModel,
     currentStep: Int = 1,
     totalSteps: Int = 3,
-    foundDevices: List<FoundDevice> = listOf(
-        FoundDevice("1", "shellyplug-S-3F2A"),
-        FoundDevice("2", "shelly1pm-A87B"),
-    ),
-    scannedCount: Int = 14,
-    totalCount: Int = 254,
-    subnet: String = "192.168.1.0/24",
+    subnet: String = "Red local",
     onBack: () -> Unit = {},
     onCancel: () -> Unit = {},
-    onViewFound: (List<FoundDevice>) -> Unit = {},
+    onViewFound: () -> Unit = {}, // ya no necesita la lista ni un scanId
 ) {
+    val context = LocalContext.current
+    val uiState by viewModel.uiState.collectAsState()
+    LaunchedEffect(Unit) { viewModel.scanAll(context) }
+    DisposableEffect(Unit) { onDispose { /* el scan sigue vivo: se detiene en FoundDevicesScreen */ } }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
