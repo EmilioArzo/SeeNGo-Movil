@@ -21,6 +21,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.emilionavarro.prueba.dispositivos.data.isWifiConnected
 
 // ── Color tokens ─────────────────────────────────────────────────────────────
 private val Background = Color(0xFFEAE7E0)
@@ -140,8 +141,6 @@ fun DeviceDetailScreen(
                     )
                 }
                 Spacer(Modifier.height(16.dp))
-                // Nota: el backend de dispositivos aún no expone consumo (W/kWh/costo);
-                // esta sección queda como placeholder hasta que exista ese endpoint.
                 Text(
                     buildAnnotatedString {
                         withStyle(SpanStyle(fontSize = 40.sp, fontWeight = FontWeight.Bold, color = OnBackground)) {
@@ -154,7 +153,11 @@ fun DeviceDetailScreen(
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    if (device.isOnline) "Dispositivo en línea" else "Dispositivo desconectado",
+                    when {
+                        !device.isOnline -> "Dispositivo desconectado"
+                        device.isWifiConnected() -> "Conectado por WiFi"
+                        else -> "Conectado por Bluetooth"
+                    },
                     fontSize = 13.sp,
                     color = Subtle
                 )
@@ -185,7 +188,7 @@ fun DeviceDetailScreen(
         Spacer(Modifier.height(10.dp))
         Column(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(Surface)) {
             val info = listOfNotNull(
-                device.localIp?.let { "IP local" to it },
+                if (device.isWifiConnected()) device.localIp?.let { "IP local" to it } else "Conexión" to "Bluetooth",
                 device.macAddress?.let { "MAC" to it },
                 device.deviceType?.let { "Tipo" to it },
                 device.createdAt?.let { "Vinculado" to it }

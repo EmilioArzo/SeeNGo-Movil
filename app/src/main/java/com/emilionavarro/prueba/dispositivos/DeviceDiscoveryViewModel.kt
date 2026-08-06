@@ -28,9 +28,17 @@ data class DiscoveryUiState(
 
 /**
  * Unifica descubrimiento WiFi (mDNS) y Bluetooth (BLE) en una sola lista, y
- * vincula lo seleccionado con POST /api/devices/sync-mdns (el backend indexa
- * por macAddress sin importar el transporte, así que un solo endpoint sirve
- * para ambos casos).
+ * vincula lo seleccionado con POST /api/devices/sync-mdns.
+ *
+ * IMPORTANTE sobre deduplicación:
+ * WifiDeviceScanner no tiene acceso a la MAC real (mDNS no la expone), así
+ * que deriva un identificador a partir del nombre del servicio. BleDeviceScanner
+ * sí trae la MAC real de Bluetooth. Como son valores distintos para el MISMO
+ * dispositivo físico, si no dedupliramos por nombre, un dispositivo que
+ * responde por ambos transportes (ej. un enchufe WiFi que también anuncia
+ * BLE) aparecería dos veces: una con LocalIp real (WiFi) y otra con
+ * LocalIp = "bluetooth". Por eso en addOrUpdate() se prioriza siempre la
+ * versión WiFi cuando el mismo nombre aparece en los dos transportes.
  */
 class DeviceDiscoveryViewModel(
     private val userId: String,
@@ -116,13 +124,42 @@ class DeviceDiscoveryViewModel(
         _uiState.value = _uiState.value.copy(isScanningWifi = false, isScanningBluetooth = false)
     }
 
+    /**
+     * Agrega un dispositivo encontrado, o lo fusiona si ya existe (misma mac,
+     * o mismo nombre visto por otro transporte). Cuando hay conflicto de
+     * transporte para el mismo nombre, la versión WiFi siempre gana porque
+     * trae LocalIp real; la versión Bluetooth se descarta.
+     */
     private fun addOrUpdate(device: DiscoveredDevice) {
         val current = _uiState.value.devices
-        val exists = current.any { it.macAddress == device.macAddress }
-        _uiState.value = _uiState.value.copy(
-            devices = if (exists) current.map { if (it.macAddress == device.macAddress) device else it }
-            else current + device
-        )
+
+        // Caso 1: ya vimos exactamente esta mac (mismo transporte) -> actualiza en su lugar.
+        if (current.any { it.macAddress == device.macAddress }) {
+            _uiState.value = _uiState.value.copy(
+                devices = current.map { if (it.macAddress == device.macAddress) device else it }
+            )
+            return
+        }
+
+        // Caso 2: mismo nombre de dispositivo visto por el otro transporte
+        // (mac distinta porque WiFi usa un id derivado y BLE la mac real).
+        val normalizedName = device.name.trim().lowercase()
+        val existingByName = current.firstOrNull { it.name.trim().lowercase() == normalizedName }
+        if (existingByName != null && existingByName.source != device.source) {
+            val wifiVersion = if (device.source == DiscoverySource.WIFI) device else existingByName
+            val isWifiVersion = wifiVersion.source == DiscoverySource.WIFI
+            if (isWifiVersion) {
+                _uiState.value = _uiState.value.copy(
+                    devices = current.map {
+                        if (it.name.trim().lowercase() == normalizedName) wifiVersion else it
+                    }
+                )
+                return
+            }
+        }
+
+        // Caso 3: dispositivo nuevo de verdad.
+        _uiState.value = _uiState.value.copy(devices = current + device)
     }
 
     fun linkDevices(selected: List<DiscoveredDevice>) {
@@ -135,7 +172,11 @@ class DeviceDiscoveryViewModel(
                 MdnsDeviceDto(
                     macAddress = device.macAddress,
                     localIp = if (device.source == DiscoverySource.WIFI) device.extraInfo else "bluetooth",
-                    deviceType = if (device.source == DiscoverySource.WIFI) "shelly" else "ble",
+                    // DeviceType ahora es el nombre real anunciado por el dispositivo
+                    // (service name de mDNS, o nombre BLE), no una etiqueta genérica.
+                    deviceType = device.name.ifBlank {
+                        if (device.source == DiscoverySource.WIFI) "Dispositivo WiFi" else "Dispositivo Bluetooth"
+                    },
                     userId = userId
                 )
             }
@@ -158,8 +199,6 @@ class DeviceDiscoveryViewModel(
             }
         }
     }
-
-
 
     override fun onCleared() {
         super.onCleared()

@@ -65,3 +65,11 @@ class DeviceRepository(
         }
     }
 }
+
+/**
+ * El backend no tiene un campo explícito de "transporte" (WiFi vs Bluetooth);
+ * la señal ya vive en LocalIp: si no es el literal "bluetooth", es WiFi.
+ * Usa esto en vez de inspeccionar deviceType para decidir el badge de conexión.
+ */
+fun DeviceResponse.isWifiConnected(): Boolean =
+    !localIp.isNullOrBlank() && localIp != "bluetooth"

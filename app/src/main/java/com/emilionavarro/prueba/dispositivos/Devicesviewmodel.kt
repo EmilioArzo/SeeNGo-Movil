@@ -10,6 +10,7 @@ import androidx.lifecycle.viewModelScope
 import com.emilionavarro.prueba.autenticacion.data.local.SessionManager
 import com.emilionavarro.prueba.dispositivos.data.ApiResult
 import com.emilionavarro.prueba.dispositivos.data.DeviceRepository
+import com.emilionavarro.prueba.dispositivos.data.isWifiConnected
 import com.emilionavarro.prueba.dispositivos.network.SpotifyAuthRetrofitClient
 import com.emilionavarro.prueba.dispositivos.network.SpotifyTokenDto
 import com.emilionavarro.prueba.dispositivos.data.spotify.PkceGenerator
@@ -98,7 +99,6 @@ class DevicesViewModel(
     // SPOTIFY — OAuth Authorization Code + PKCE
     // ══════════════════════════════════════════════════════════════════════
 
-    /** Abre el navegador (Custom Tabs) para que el usuario autorice en Spotify. */
     fun startSpotifyLink(context: Context) {
         _uiState.value = _uiState.value.copy(spotifyError = null)
         val verifier = SpotifyAuthBridge.beginAuth()
@@ -116,7 +116,6 @@ class DevicesViewModel(
         CustomTabsIntent.Builder().build().launchUrl(context, authUri)
     }
 
-    /** Se dispara solo, cuando SpotifyAuthBridge recibe el `code` por el deep link. */
     private fun completeSpotifyLink(code: String) {
         val verifier = SpotifyAuthBridge.pendingCodeVerifier
         SpotifyAuthBridge.consume()
@@ -177,12 +176,18 @@ class DevicesViewModel(
             .groupBy { it.room ?: "Sin cuarto" }
             .map { (roomName, devicesInRoom) ->
                 val items = devicesInRoom.map { dev ->
-                    val key = "$roomName:${dev.displayName ?: dev.deviceType ?: "Dispositivo"}"
+                    val displayName = dev.displayName ?: dev.deviceType ?: "Dispositivo"
+                    val key = "$roomName:$displayName"
                     deviceIdByKey[key] = dev.id
+                    val connectionLabel = when {
+                        !dev.isOnline -> "Desconectado"
+                        dev.isWifiConnected() -> "WiFi"
+                        else -> "Bluetooth"
+                    }
                     DeviceItem(
-                        name = dev.displayName ?: dev.deviceType ?: "Dispositivo",
-                        subtitle = "${dev.deviceType ?: "Shelly"} · ${if (dev.isOnline) "En línea" else "Desconectado"}",
-                        icon = iconForDeviceType(dev.deviceType),
+                        name = displayName,
+                        subtitle = "${dev.deviceType ?: "Dispositivo"} · $connectionLabel",
+                        icon = iconForIconLabel(dev.icon),
                         isOn = dev.isOn
                     )
                 }
@@ -190,12 +195,18 @@ class DevicesViewModel(
             }
     }
 
-    private fun iconForDeviceType(deviceType: String?): ImageVector = when (deviceType?.lowercase()) {
-        "shellyplug", "plug" -> Icons.Outlined.Tungsten
-        "shelly1pm", "switch" -> Icons.Outlined.LightMode
-        "ac", "aire" -> Icons.Outlined.AcUnit
-        "tv" -> Icons.Outlined.Tv
-        "speaker", "echo" -> Icons.Outlined.GraphicEq
-        else -> Icons.Outlined.Memory
+    /**
+     * El ícono ya se guarda explícitamente al configurar el dispositivo
+     * (ConfigureDeviceScreen -> updateDevice(..., icon = ...)), así que se
+     * resuelve por esa etiqueta en vez de adivinar a partir de deviceType
+     * (que ahora es el nombre real del producto, no una categoría fija).
+     */
+    private fun iconForIconLabel(icon: String?): ImageVector = when (icon) {
+        "lámpara" -> Icons.Outlined.LightMode
+        "mesa"    -> Icons.Outlined.Tungsten
+        "tv"      -> Icons.Outlined.Tv
+        "control" -> Icons.Outlined.SettingsRemote
+        "enchufe" -> Icons.Outlined.Power
+        else      -> Icons.Outlined.Memory
     }
 }

@@ -109,6 +109,7 @@ object Routes {
     const val BLUETOOTH_SCAN = "bluetooth_scan"
 
 
+
     // Gesture flow
     const val GESTURE_DETAIL    = "gesture_detail/{gestureId}"
     const val CONFIGURE_GESTURE = "configure_gesture/{gestureId}"
@@ -511,17 +512,6 @@ fun AppNavHost(navController: NavHostController) {
             )
         }
 
-        composable(Routes.BLUETOOTH_SCAN) {
-            val userId = session.getUserId() ?: ""
-            com.emilionavarro.prueba.dispositivos.bluetooth.BluetoothScanScreen(
-                userId = userId,
-                onBack = { navController.popBackStack() },
-                onLinked = { deviceId ->
-                    navController.navigate(Routes.configureDevice(deviceId)) {
-                        popUpTo(Routes.BLUETOOTH_SCAN) { inclusive = true }
-                    }
-                }
-            )
-        }
+
     }
 }
