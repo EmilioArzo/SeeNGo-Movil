@@ -22,6 +22,7 @@ data class DiscoveryUiState(
     val devices: List<DiscoveredDevice> = emptyList(),
     val isLinking: Boolean = false,
     val linkSuccess: Boolean = false,
+    val newlyLinkedDeviceId: String? = null,
     val errorMessage: String? = null
 )
 
@@ -95,9 +96,18 @@ class DeviceDiscoveryViewModel(
 
     /** Dispara ambos escaneos a la vez; se usa desde ScanNetworkScreen y como "Volver a escanear". */
     fun scanAll(context: Context) {
-        _uiState.value = _uiState.value.copy(devices = emptyList())
+        _uiState.value = _uiState.value.copy(
+            devices = emptyList(),
+            linkSuccess = false,
+            newlyLinkedDeviceId = null,
+            errorMessage = null
+        )
         startWifiScan(context)
         startBluetoothScan(context)
+    }
+
+    fun consumeLinkSuccess() {
+        _uiState.value = _uiState.value.copy(linkSuccess = false)
     }
 
     fun stopScans() {
@@ -131,11 +141,25 @@ class DeviceDiscoveryViewModel(
             }
 
             when (val result = repository.linkDevices(dtos)) {
-                is ApiResult.Success -> _uiState.value = _uiState.value.copy(isLinking = false, linkSuccess = true)
+                is ApiResult.Success -> {
+                    // sync-mdns no devuelve el id creado; lo resolvemos re-consultando
+                    // por macAddress (tomamos el primero si se seleccionó más de uno).
+                    val resolvedId = when (val list = repository.getDevices(userId)) {
+                        is ApiResult.Success -> list.data.firstOrNull { it.macAddress == selected.first().macAddress }?.id
+                        is ApiResult.Error -> null
+                    }
+                    _uiState.value = _uiState.value.copy(
+                        isLinking = false,
+                        linkSuccess = true,
+                        newlyLinkedDeviceId = resolvedId
+                    )
+                }
                 is ApiResult.Error -> _uiState.value = _uiState.value.copy(isLinking = false, errorMessage = result.message)
             }
         }
     }
+
+
 
     override fun onCleared() {
         super.onCleared()

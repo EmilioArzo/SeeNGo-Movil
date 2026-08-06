@@ -123,20 +123,22 @@ interface DeviceApiService {
 // ════════════════════════════════════════════════════════════════════════════
 
 object ApiClient {
-    // Si pruebas en emulador Android contra un backend en tu misma máquina,
-    // usa "http://10.0.2.2:PUERTO/". Si es un dispositivo físico en la misma
-    // red, usa la IP local de la máquina donde corre el backend.
     private const val BASE_URL = "https://seengo-backend-production-38f3.up.railway.app"
     private val okHttpClient = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(15, TimeUnit.SECONDS)
         .build()
 
+    // 👇 nuevo: gson con el adapter para el id "roto" que manda el backend
+    private val gson = com.google.gson.GsonBuilder()
+        .registerTypeAdapter(String::class.java, MongoIdAdapter())
+        .create()
+
     val deviceApi: DeviceApiService by lazy {
         Retrofit.Builder()
             .baseUrl(BASE_URL)
             .client(okHttpClient)
-            .addConverterFactory(GsonConverterFactory.create())
+            .addConverterFactory(GsonConverterFactory.create(gson)) // 👈 antes: GsonConverterFactory.create()
             .build()
             .create(DeviceApiService::class.java)
     }

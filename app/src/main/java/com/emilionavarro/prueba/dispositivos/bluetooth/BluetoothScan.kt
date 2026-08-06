@@ -41,7 +41,7 @@ private val CheckBg        = Color(0xFF232320)
 fun BluetoothScanScreen(
     userId: String,
     onBack: () -> Unit = {},
-    onLinked: () -> Unit = {},
+    onLinked: (deviceId: String) -> Unit = {},
     viewModel: BluetoothDevicesViewModel = viewModel(factory = viewModelFactory { BluetoothDevicesViewModel(userId = userId) })
 ) {
     val context = LocalContext.current
@@ -66,7 +66,9 @@ fun BluetoothScanScreen(
 
     LaunchedEffect(Unit) { permissionLauncher.launch(requiredPermissions) }
     DisposableEffect(Unit) { onDispose { viewModel.stopScan() } }
-    LaunchedEffect(uiState.linkSuccess) { if (uiState.linkSuccess) onLinked() }
+    LaunchedEffect(uiState.linkSuccess) {
+        if (uiState.linkSuccess) onLinked(uiState.newlyLinkedDeviceId ?: "new")
+    }
 
     Box(modifier = Modifier.fillMaxSize().background(Background)) {
         Column(

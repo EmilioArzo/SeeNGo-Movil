@@ -87,10 +87,15 @@ interface DashboardApiService {
 // ── Cliente Retrofit (mismo patrón que autenticacion/perfil/dispositivos) ────
 object DashboardRetrofitClient {
     private const val BASE_URL = "https://seengo-backend-production-38f3.up.railway.app"
+
+    private val gson = com.google.gson.GsonBuilder()
+        .registerTypeAdapter(String::class.java, com.emilionavarro.prueba.dispositivos.network.MongoIdAdapter())
+        .create()
+
     val api: DashboardApiService by lazy {
         Retrofit.Builder()
             .baseUrl(BASE_URL)
-            .addConverterFactory(GsonConverterFactory.create())
+            .addConverterFactory(GsonConverterFactory.create(gson))
             .build()
             .create(DashboardApiService::class.java)
     }

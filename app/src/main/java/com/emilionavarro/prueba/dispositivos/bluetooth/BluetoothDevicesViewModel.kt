@@ -17,6 +17,7 @@ data class BleDevicesUiState(
     val devices: List<BleFoundDevice> = emptyList(),
     val isLinking: Boolean = false,
     val linkSuccess: Boolean = false,
+    val newlyLinkedDeviceId: String? = null,
     val errorMessage: String? = null
 )
 
@@ -69,16 +70,19 @@ class BluetoothDevicesViewModel(
             _uiState.value = _uiState.value.copy(isLinking = true, errorMessage = null)
 
             val dtos = selected.map { device ->
-                MdnsDeviceDto(
-                    macAddress = device.macAddress,
-                    localIp = "bluetooth",
-                    deviceType = "ble",
-                    userId = userId
-                )
+                MdnsDeviceDto(macAddress = device.macAddress, localIp = "bluetooth", deviceType = "ble", userId = userId)
             }
 
             when (val result = repository.linkDevices(dtos)) {
-                is ApiResult.Success -> _uiState.value = _uiState.value.copy(isLinking = false, linkSuccess = true)
+                is ApiResult.Success -> {
+                    val resolvedId = when (val list = repository.getDevices(userId)) {
+                        is ApiResult.Success -> list.data.firstOrNull { it.macAddress == selected.first().macAddress }?.id
+                        is ApiResult.Error -> null
+                    }
+                    _uiState.value = _uiState.value.copy(
+                        isLinking = false, linkSuccess = true, newlyLinkedDeviceId = resolvedId
+                    )
+                }
                 is ApiResult.Error -> _uiState.value = _uiState.value.copy(isLinking = false, errorMessage = result.message)
             }
         }

@@ -13,6 +13,9 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import kotlinx.coroutines.delay
 
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
+
 import androidx.compose.runtime.collectAsState
 import com.emilionavarro.prueba.perfil.data.AppPreferences
 import com.emilionavarro.prueba.perfil.data.AppSettings
@@ -349,8 +352,8 @@ fun AppNavHost(navController: NavHostController) {
                 userId    = session.getUserId() ?: "",
                 viewModel = discoveryViewModel,
                 onBack    = { navController.popBackStack() },
-                onLinked  = {
-                    navController.navigate(Routes.DEVICE_SUCCESS.replace("{deviceId}", "new")) {
+                onLinked  = { deviceId ->
+                    navController.navigate(Routes.configureDevice(deviceId)) {
                         popUpTo(Routes.SCAN_NETWORK) { inclusive = true }
                     }
                 },
@@ -358,17 +361,24 @@ fun AppNavHost(navController: NavHostController) {
         }
 
         composable(Routes.CONFIGURE_DEVICE) { backStack ->
-            val scanId = backStack.arguments?.getString("scanId") ?: ""
+            val deviceId = backStack.arguments?.getString("scanId") ?: ""   // el arg se llama scanId mas ahora lleva el deviceId real
             val userId = session.getUserId() ?: ""
+            val scope = rememberCoroutineScope()
+
             ConfigureDeviceScreen(
-                deviceRawName = scanId,
-                onBack       = { navController.popBackStack() },
-                onSave       = { name, room, icon ->
-                    navController.navigate(Routes.deviceSuccess("new")) {
-                        popUpTo(Routes.SCAN_NETWORK) { inclusive = true }
+                deviceRawName = deviceId,
+                onBack        = { navController.popBackStack() },
+                onSave        = { name, room, icon ->
+                    scope.launch {
+                        com.emilionavarro.prueba.dispositivos.data.DeviceRepository().updateDevice(
+                            id = deviceId, displayName = name, room = room, icon = icon
+                        )
+                        navController.navigate(Routes.deviceSuccess(deviceId)) {
+                            popUpTo(Routes.SCAN_NETWORK) { inclusive = true }
+                        }
                     }
                 },
-                onAddRoom    = { },
+                onAddRoom = { },
             )
         }
 
@@ -506,8 +516,8 @@ fun AppNavHost(navController: NavHostController) {
             com.emilionavarro.prueba.dispositivos.bluetooth.BluetoothScanScreen(
                 userId = userId,
                 onBack = { navController.popBackStack() },
-                onLinked = {
-                    navController.navigate(Routes.DEVICE_SUCCESS.replace("{deviceId}", "new")) {
+                onLinked = { deviceId ->
+                    navController.navigate(Routes.configureDevice(deviceId)) {
                         popUpTo(Routes.BLUETOOTH_SCAN) { inclusive = true }
                     }
                 }

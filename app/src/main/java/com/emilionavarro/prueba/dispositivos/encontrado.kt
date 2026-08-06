@@ -49,7 +49,7 @@ fun FoundDevicesScreen(
     currentStep: Int = 2,
     totalSteps: Int = 3,
     onBack: () -> Unit = {},
-    onLinked: () -> Unit = {},
+    onLinked: (deviceId: String) -> Unit = {},
     viewModel: DeviceDiscoveryViewModel,
 ) {
     val context = LocalContext.current
@@ -74,7 +74,11 @@ fun FoundDevicesScreen(
 
     LaunchedEffect(Unit) { permissionLauncher.launch(bluetoothPermissions) }
     DisposableEffect(Unit) { onDispose { viewModel.stopScans() } }
-    LaunchedEffect(uiState.linkSuccess) { if (uiState.linkSuccess) onLinked() }
+    LaunchedEffect(uiState.linkSuccess) {
+        if (uiState.linkSuccess) {
+            onLinked(uiState.newlyLinkedDeviceId ?: "new")
+        }
+    }
 
     val isScanning = uiState.isScanningWifi || uiState.isScanningBluetooth
     val selectedDevices = uiState.devices.filter { it.macAddress in selectedIds }
