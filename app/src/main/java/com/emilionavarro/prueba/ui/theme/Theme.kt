@@ -8,25 +8,16 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalContext
 
 private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
+    primary = Purple80, secondary = PurpleGrey80, tertiary = Pink80
 )
-
 private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
+    primary = Purple40, secondary = PurpleGrey40, tertiary = Pink40
 )
 
-/**
- * @param themeMode "Claro" | "Oscuro" | "Sistema" — viene de AppPreferences.theme.
- * dynamicColor se deja en false por defecto para respetar la elección explícita
- * del usuario en vez del color dinámico de Android 12+.
- */
 @Composable
 fun PruebaTheme(
     themeMode: String = "Sistema",
@@ -37,8 +28,11 @@ fun PruebaTheme(
     val darkTheme = when (themeMode) {
         "Oscuro" -> true
         "Claro"  -> false
-        else     -> systemDark // "Sistema"
+        else     -> systemDark
     }
+
+    // 👉 Esto es lo nuevo: elige el set de AppColors según el tema
+    val appColors = if (darkTheme) DarkAppColors else LightAppColors
 
     val colorScheme = when {
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
@@ -49,9 +43,12 @@ fun PruebaTheme(
         else -> LightColorScheme
     }
 
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = Typography,
-        content = content
-    )
+    // 👉 Provee AppColors a todo el árbol de composables hijos
+    CompositionLocalProvider(LocalAppColors provides appColors) {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            typography = Typography,
+            content = content
+        )
+    }
 }

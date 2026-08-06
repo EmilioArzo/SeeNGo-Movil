@@ -21,16 +21,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.emilionavarro.prueba.senas.data.network.GestureDto
 import com.emilionavarro.prueba.senas.viewmodel.GesturesViewModel
+import com.emilionavarro.prueba.ui.theme.LocalAppColors
 
-// ── Color tokens ─────────────────────────────────────────────────────────────
-private val Background    = Color(0xFFEAE7E0)
-private val Surface       = Color(0xFFF2EFEA)
-private val OnBackground  = Color(0xFF1C1C1C)
-private val Subtle        = Color(0xFF7A7A7A)
-private val Accent        = Color(0xFF232320)
-private val BorderColor   = Color(0xFFDDDAD3)
-private val GestureIconBg = Color(0xFFE8E5DE)
-private val NavSelected   = Color(0xFFE4E1D9)
+// ── Ya no hay colores fijos aquí: Background, Surface, OnBackground, ────────
+// ── Subtle, Accent, BorderColor, GestureIconBg y NavSelected vienen ─────────
+// ── todos de LocalAppColors. ─────────────────────────────────────────────────
 
 // ── UI model ──────────────────────────────────────────────────────────────────
 data class GestureListItem(
@@ -93,6 +88,7 @@ fun GesturesScreenContent(
     onNavSugerencias: () -> Unit = {},
     onNavPerfil: () -> Unit = {},
 ) {
+    val colors = LocalAppColors.current   // 👈 nueva línea
     var searchQuery by remember { mutableStateOf("") }
 
     val filtered = gestures.filter { g ->
@@ -102,7 +98,7 @@ fun GesturesScreenContent(
     }
 
     Scaffold(
-        containerColor = Background,
+        containerColor = colors.background,
         bottomBar = {
             GesturesBottomNavBar(
                 selected          = "Señas",
@@ -133,22 +129,22 @@ fun GesturesScreenContent(
                         "Señas",
                         fontSize = 28.sp,
                         fontWeight = FontWeight.Bold,
-                        color = OnBackground
+                        color = colors.onBackground
                     )
                     Text(
                         "${gestures.size} señas guardadas",
                         fontSize = 13.sp,
-                        color = Subtle
+                        color = colors.subtle
                     )
                 }
                 Box(
                     modifier = Modifier
                         .size(44.dp)
-                        .background(Accent, RoundedCornerShape(14.dp))
+                        .background(colors.accent, RoundedCornerShape(14.dp))
                         .clickable { onAddGesture() },
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Outlined.Add, contentDescription = "Agregar seña", tint = Color.White)
+                    Icon(Icons.Outlined.Add, contentDescription = "Agregar seña", tint = colors.onAccent)
                 }
             }
 
@@ -161,20 +157,20 @@ fun GesturesScreenContent(
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 placeholder = {
-                    Text("Buscar seña o acción", fontSize = 14.sp, color = Subtle)
+                    Text("Buscar seña o acción", fontSize = 14.sp, color = colors.subtle)
                 },
                 leadingIcon = {
-                    Icon(Icons.Outlined.Search, contentDescription = null, tint = Subtle)
+                    Icon(Icons.Outlined.Search, contentDescription = null, tint = colors.subtle)
                 },
                 shape = RoundedCornerShape(14.dp),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor    = Surface,
-                    unfocusedContainerColor  = Surface,
-                    focusedBorderColor       = OnBackground,
-                    unfocusedBorderColor     = BorderColor,
-                    focusedTextColor         = OnBackground,
-                    unfocusedTextColor       = OnBackground,
-                    cursorColor              = OnBackground
+                    focusedContainerColor    = colors.surface,
+                    unfocusedContainerColor  = colors.surface,
+                    focusedBorderColor       = colors.onBackground,
+                    unfocusedBorderColor     = colors.borderColor,
+                    focusedTextColor         = colors.onBackground,
+                    unfocusedTextColor       = colors.onBackground,
+                    cursorColor              = colors.onBackground
                 )
             )
 
@@ -183,14 +179,14 @@ fun GesturesScreenContent(
             when {
                 isLoading -> {
                     Box(Modifier.fillMaxWidth().padding(vertical = 50.dp), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(color = Accent)
+                        CircularProgressIndicator(color = colors.accent)
                     }
                 }
 
                 errorMessage != null -> {
                     Text(
                         "No se pudieron cargar tus señas: $errorMessage",
-                        color = Subtle,
+                        color = colors.subtle,
                         fontSize = 13.sp
                     )
                 }
@@ -199,7 +195,7 @@ fun GesturesScreenContent(
                     Text(
                         if (gestures.isEmpty()) "Aún no tienes señas guardadas."
                         else "No encontramos señas con ese criterio.",
-                        color = Subtle,
+                        color = colors.subtle,
                         fontSize = 13.sp
                     )
                 }
@@ -222,11 +218,12 @@ fun GesturesScreenContent(
 // ── Gesture card ──────────────────────────────────────────────────────────────
 @Composable
 private fun GestureCard(gesture: GestureListItem, onClick: () -> Unit) {
+    val colors = LocalAppColors.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(18.dp))
-            .background(Surface)
+            .background(colors.surface)
             .clickable { onClick() }
             .padding(14.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -235,13 +232,13 @@ private fun GestureCard(gesture: GestureListItem, onClick: () -> Unit) {
             modifier = Modifier
                 .size(52.dp)
                 .clip(RoundedCornerShape(14.dp))
-                .background(GestureIconBg),
+                .background(colors.surfaceCard),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 Icons.Outlined.PanTool,
                 contentDescription = null,
-                tint = OnBackground,
+                tint = colors.onBackground,
                 modifier = Modifier.size(24.dp)
             )
         }
@@ -253,14 +250,14 @@ private fun GestureCard(gesture: GestureListItem, onClick: () -> Unit) {
                 gesture.name,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = OnBackground,
+                color = colors.onBackground,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
             Text(
                 gesture.actionSummary,
                 fontSize = 12.sp,
-                color = Subtle,
+                color = colors.subtle,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -269,7 +266,7 @@ private fun GestureCard(gesture: GestureListItem, onClick: () -> Unit) {
                 Text(
                     "Sin dispositivo vinculado",
                     fontSize = 11.sp,
-                    color = Color(0xFFB3413B)
+                    color = colors.errorColor
                 )
             }
         }
@@ -277,7 +274,7 @@ private fun GestureCard(gesture: GestureListItem, onClick: () -> Unit) {
         Icon(
             Icons.Outlined.ChevronRight,
             contentDescription = null,
-            tint = Subtle,
+            tint = colors.subtle,
             modifier = Modifier.size(18.dp)
         )
     }
@@ -293,6 +290,7 @@ private fun GesturesBottomNavBar(
     onNavSugerencias: () -> Unit,
     onNavPerfil: () -> Unit,
 ) {
+    val colors = LocalAppColors.current
     val items = listOf(
         Triple("Inicio",       Icons.Outlined.Home,            onNavInicio),
         Triple("Señas",        Icons.Outlined.PanTool,         onNavSenas),
@@ -300,8 +298,8 @@ private fun GesturesBottomNavBar(
         Triple("Sugerencias",  Icons.Outlined.AutoAwesome,     onNavSugerencias),
         Triple("Perfil",       Icons.Outlined.Person,          onNavPerfil),
     )
-    Surface(color = Background, tonalElevation = 0.dp) {
-        HorizontalDivider(color = BorderColor, thickness = 0.5.dp)
+    Surface(color = colors.background, tonalElevation = 0.dp) {
+        HorizontalDivider(color = colors.borderColor, thickness = 0.5.dp)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -315,12 +313,12 @@ private fun GesturesBottomNavBar(
                     modifier = Modifier
                         .clip(RoundedCornerShape(12.dp))
                         .clickable { action() }
-                        .background(if (isSel) NavSelected else Color.Transparent)
+                        .background(if (isSel) colors.iconBg else Color.Transparent)
                         .padding(horizontal = 14.dp, vertical = 8.dp)
                 ) {
-                    Icon(icon, contentDescription = label, tint = if (isSel) OnBackground else Subtle, modifier = Modifier.size(22.dp))
+                    Icon(icon, contentDescription = label, tint = if (isSel) colors.onBackground else colors.subtle, modifier = Modifier.size(22.dp))
                     Spacer(Modifier.height(2.dp))
-                    Text(label, fontSize = 10.sp, color = if (isSel) OnBackground else Subtle, fontWeight = if (isSel) FontWeight.Medium else FontWeight.Normal)
+                    Text(label, fontSize = 10.sp, color = if (isSel) colors.onBackground else colors.subtle, fontWeight = if (isSel) FontWeight.Medium else FontWeight.Normal)
                 }
             }
         }

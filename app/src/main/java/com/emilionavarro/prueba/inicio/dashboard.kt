@@ -24,21 +24,11 @@ import com.emilionavarro.prueba.inicio.viewmodel.DashboardViewModel
 import com.emilionavarro.prueba.inicio.viewmodel.QuickDeviceUi
 import com.emilionavarro.prueba.inicio.viewmodel.RoutineUi
 import com.emilionavarro.prueba.inicio.viewmodel.SuggestionUi
+import com.emilionavarro.prueba.ui.theme.LocalAppColors
 
-// ── Color tokens ─────────────────────────────────────────────────────────────
-private val Background   = Color(0xFFEAE7E0)
-private val Surface      = Color(0xFFF2EFEA)
-private val SurfaceCard  = Color(0xFFE8E5DE)
-private val OnBackground = Color(0xFF1C1C1C)
-private val Subtle       = Color(0xFF7A7A7A)
-private val Accent       = Color(0xFF232320)
-private val BorderColor  = Color(0xFFDDDAD3)
-private val ToggleOn     = Color(0xFF232320)
-private val ToggleOff    = Color(0xFFCBC8C0)
-private val IconBg       = Color(0xFFE4E1D9)
-private val NavSelected  = Color(0xFFE4E1D9)
-private val ErrorRed     = Color(0xFFD94F3D)
-private val BadgeRed     = Color(0xFFD94F3D)
+// ── Ya no hay colores fijos aquí: Background, Surface, SurfaceCard, ─────────
+// ── OnBackground, Subtle, Accent, BorderColor, ToggleOn/Off, IconBg, ────────
+// ── NavSelected, ErrorRed y BadgeRed vienen todos de LocalAppColors. ────────
 
 // ── Screen ────────────────────────────────────────────────────────────────────
 @Composable
@@ -55,6 +45,7 @@ fun HomeScreen(
     onRoutineClick: (String) -> Unit = {},
     viewModel: DashboardViewModel = viewModel(factory = viewModelFactory { DashboardViewModel(userId = userId) })
 ) {
+    val colors = LocalAppColors.current   // 👈 nueva línea
     val uiState by viewModel.uiState.collectAsState()
 
     if (uiState.isLoading) {
@@ -63,7 +54,7 @@ fun HomeScreen(
     }
 
     Scaffold(
-        containerColor = Background,
+        containerColor = colors.background,
         bottomBar = {
             HomeBottomNavBar(
                 selected = "Inicio",
@@ -91,12 +82,12 @@ fun HomeScreen(
             ) {
                 Column {
                     if (userName.isNotBlank()) {
-                        Text("Buenos días, $userName", fontSize = 13.sp, color = Subtle)
+                        Text("Buenos días, $userName", fontSize = 13.sp, color = colors.subtle)
                     }
                     Text(
                         "Tu casa,\nen una seña.",
                         fontSize = 28.sp, fontWeight = FontWeight.Bold,
-                        color = OnBackground, lineHeight = 34.sp
+                        color = colors.onBackground, lineHeight = 34.sp
                     )
                 }
                 Box(
@@ -104,11 +95,11 @@ fun HomeScreen(
                         .padding(top = 4.dp)
                         .size(40.dp)
                         .clip(RoundedCornerShape(12.dp))
-                        .background(Surface)
+                        .background(colors.surface)
                         .clickable { onNotifications() },
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Outlined.NotificationsNone, "Notificaciones", tint = OnBackground, modifier = Modifier.size(20.dp))
+                    Icon(Icons.Outlined.NotificationsNone, "Notificaciones", tint = colors.onBackground, modifier = Modifier.size(20.dp))
                     if (uiState.suggestions.isNotEmpty()) {
                         Box(
                             modifier = Modifier
@@ -116,7 +107,7 @@ fun HomeScreen(
                                 .offset(x = 2.dp, y = (-2).dp)
                                 .size(16.dp)
                                 .clip(RoundedCornerShape(50))
-                                .background(BadgeRed),
+                                .background(colors.errorColor),
                             contentAlignment = Alignment.Center
                         ) {
                             Text("${uiState.suggestions.size}", fontSize = 9.sp, color = Color.White, fontWeight = FontWeight.Bold)
@@ -130,13 +121,13 @@ fun HomeScreen(
             if (uiState.errorMessage != null) {
                 Row(
                     modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
-                        .background(ErrorRed.copy(alpha = 0.1f)).padding(12.dp),
+                        .background(colors.errorColor.copy(alpha = 0.1f)).padding(12.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(uiState.errorMessage!!, fontSize = 12.sp, color = ErrorRed, modifier = Modifier.weight(1f))
+                    Text(uiState.errorMessage!!, fontSize = 12.sp, color = colors.errorColor, modifier = Modifier.weight(1f))
                     Text(
-                        "Reintentar", fontSize = 12.sp, color = ErrorRed, fontWeight = FontWeight.Bold,
+                        "Reintentar", fontSize = 12.sp, color = colors.errorColor, fontWeight = FontWeight.Bold,
                         modifier = Modifier.clickable { viewModel.loadDashboard() }
                     )
                 }
@@ -145,22 +136,22 @@ fun HomeScreen(
 
             // ── Resumen del hogar (reemplaza el kWh estático) ───────────────
             Row(
-                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(SurfaceCard).padding(18.dp),
+                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(colors.surfaceCard).padding(18.dp),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Column {
-                    Text("AHORA", fontSize = 10.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.sp, color = Subtle)
+                    Text("AHORA", fontSize = 10.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.sp, color = colors.subtle)
                     Spacer(Modifier.height(4.dp))
                     Text(
                         "${uiState.devicesOn} de ${uiState.totalDevices} encendidos",
-                        fontSize = 20.sp, fontWeight = FontWeight.Bold, color = OnBackground
+                        fontSize = 20.sp, fontWeight = FontWeight.Bold, color = colors.onBackground
                     )
-                    Text("${uiState.devicesOnline} en línea", fontSize = 12.sp, color = Subtle)
+                    Text("${uiState.devicesOnline} en línea", fontSize = 12.sp, color = colors.subtle)
                 }
                 Column(horizontalAlignment = Alignment.End) {
-                    Text("RUTINAS ACTIVAS", fontSize = 10.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.sp, color = Subtle)
+                    Text("RUTINAS ACTIVAS", fontSize = 10.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.sp, color = colors.subtle)
                     Spacer(Modifier.height(4.dp))
-                    Text("${uiState.routines.size}", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = OnBackground)
+                    Text("${uiState.routines.size}", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = colors.onBackground)
                 }
             }
 
@@ -172,15 +163,15 @@ fun HomeScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("CONTROLES RÁPIDOS", fontSize = 10.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.sp, color = Subtle)
-                Text("Ver todos", fontSize = 13.sp, color = OnBackground, fontWeight = FontWeight.Medium,
+                Text("CONTROLES RÁPIDOS", fontSize = 10.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.sp, color = colors.subtle)
+                Text("Ver todos", fontSize = 13.sp, color = colors.onBackground, fontWeight = FontWeight.Medium,
                     modifier = Modifier.clickable { onVerTodos() })
             }
 
             Spacer(Modifier.height(10.dp))
 
             if (uiState.quickDevices.isEmpty()) {
-                Text("Aún no tienes dispositivos vinculados.", fontSize = 13.sp, color = Subtle)
+                Text("Aún no tienes dispositivos vinculados.", fontSize = 13.sp, color = colors.subtle)
             } else {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     uiState.quickDevices.chunked(2).forEach { row ->
@@ -201,14 +192,14 @@ fun HomeScreen(
             Spacer(Modifier.height(24.dp))
 
             // ── Rutinas activas (reales, desde /api/client/dashboard) ───────
-            Text("RUTINAS ACTIVAS", fontSize = 10.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.sp, color = Subtle)
+            Text("RUTINAS ACTIVAS", fontSize = 10.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.sp, color = colors.subtle)
             Spacer(Modifier.height(10.dp))
 
             if (uiState.routines.isEmpty()) {
-                Text("No tienes rutinas activas todavía.", fontSize = 13.sp, color = Subtle)
+                Text("No tienes rutinas activas todavía.", fontSize = 13.sp, color = colors.subtle)
             } else {
                 Column(
-                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(Surface)
+                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(colors.surface)
                 ) {
                     uiState.routines.forEachIndexed { index, routine ->
                         RoutineRow(
@@ -217,7 +208,7 @@ fun HomeScreen(
                             onToggleOff = { viewModel.deactivateRoutine(routine.id) }
                         )
                         if (index < uiState.routines.lastIndex) {
-                            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = BorderColor, thickness = 0.5.dp)
+                            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = colors.borderColor, thickness = 0.5.dp)
                         }
                     }
                 }
@@ -231,8 +222,8 @@ fun HomeScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("SUGERENCIAS PARA TI", fontSize = 10.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.sp, color = Subtle)
-                    Text("Ver todas", fontSize = 13.sp, color = OnBackground, fontWeight = FontWeight.Medium,
+                    Text("SUGERENCIAS PARA TI", fontSize = 10.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.sp, color = colors.subtle)
+                    Text("Ver todas", fontSize = 13.sp, color = colors.onBackground, fontWeight = FontWeight.Medium,
                         modifier = Modifier.clickable { onNavSugerencias() })
                 }
                 Spacer(Modifier.height(10.dp))
@@ -253,44 +244,46 @@ fun HomeScreen(
 // ── Quick device card ─────────────────────────────────────────────────────────
 @Composable
 private fun QuickDeviceCard(device: QuickDeviceUi, onToggle: (Boolean) -> Unit, modifier: Modifier = Modifier) {
-    Column(modifier = modifier.clip(RoundedCornerShape(16.dp)).background(Surface).padding(12.dp)) {
+    val colors = LocalAppColors.current
+    Column(modifier = modifier.clip(RoundedCornerShape(16.dp)).background(colors.surface).padding(12.dp)) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Box(modifier = Modifier.size(36.dp).background(IconBg, RoundedCornerShape(10.dp)), contentAlignment = Alignment.Center) {
-                Icon(device.icon, contentDescription = null, tint = OnBackground, modifier = Modifier.size(18.dp))
+            Box(modifier = Modifier.size(36.dp).background(colors.iconBg, RoundedCornerShape(10.dp)), contentAlignment = Alignment.Center) {
+                Icon(device.icon, contentDescription = null, tint = colors.onBackground, modifier = Modifier.size(18.dp))
             }
             Switch(
                 checked = device.isOn, onCheckedChange = onToggle,
                 modifier = Modifier.size(width = 44.dp, height = 26.dp),
                 colors = SwitchDefaults.colors(
-                    checkedThumbColor = Color.White, checkedTrackColor = ToggleOn,
-                    uncheckedThumbColor = Color.White, uncheckedTrackColor = ToggleOff, uncheckedBorderColor = ToggleOff
+                    checkedThumbColor = Color.White, checkedTrackColor = colors.toggleOn,
+                    uncheckedThumbColor = Color.White, uncheckedTrackColor = colors.toggleOff, uncheckedBorderColor = colors.toggleOff
                 )
             )
         }
         Spacer(Modifier.height(10.dp))
-        Text(device.name, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = OnBackground, maxLines = 1)
-        Text(device.subtitle, fontSize = 11.sp, color = Subtle, maxLines = 1)
+        Text(device.name, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = colors.onBackground, maxLines = 1)
+        Text(device.subtitle, fontSize = 11.sp, color = colors.subtle, maxLines = 1)
     }
 }
 
 // ── Routine row ────────────────────────────────────────────────────────────────
 @Composable
 private fun RoutineRow(routine: RoutineUi, onClick: () -> Unit, onToggleOff: () -> Unit) {
+    val colors = LocalAppColors.current
     Row(
         modifier = Modifier.fillMaxWidth().clickable { onClick() }.padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(modifier = Modifier.size(38.dp).background(IconBg, RoundedCornerShape(10.dp)), contentAlignment = Alignment.Center) {
-            Icon(Icons.Outlined.FlashOn, contentDescription = null, tint = OnBackground, modifier = Modifier.size(18.dp))
+        Box(modifier = Modifier.size(38.dp).background(colors.iconBg, RoundedCornerShape(10.dp)), contentAlignment = Alignment.Center) {
+            Icon(Icons.Outlined.FlashOn, contentDescription = null, tint = colors.onBackground, modifier = Modifier.size(18.dp))
         }
         Spacer(Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(routine.name, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = OnBackground)
-            Text("${routine.triggerType} · ${routine.triggerValue}", fontSize = 12.sp, color = Subtle)
+            Text(routine.name, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = colors.onBackground)
+            Text("${routine.triggerType} · ${routine.triggerValue}", fontSize = 12.sp, color = colors.subtle)
         }
         Switch(
             checked = true, onCheckedChange = { if (!it) onToggleOff() },
-            colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = ToggleOn)
+            colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = colors.toggleOn)
         )
     }
 }
@@ -298,20 +291,21 @@ private fun RoutineRow(routine: RoutineUi, onClick: () -> Unit, onToggleOff: () 
 // ── Suggestion row ─────────────────────────────────────────────────────────────
 @Composable
 private fun SuggestionRow(suggestion: SuggestionUi, onDismiss: () -> Unit, onClick: () -> Unit) {
+    val colors = LocalAppColors.current
     Row(
-        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(SurfaceCard)
+        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(colors.surfaceCard)
             .clickable { onClick() }.padding(14.dp),
         verticalAlignment = Alignment.Top
     ) {
-        Icon(Icons.Outlined.AutoAwesome, contentDescription = null, tint = Subtle, modifier = Modifier.size(16.dp).padding(top = 2.dp))
+        Icon(Icons.Outlined.AutoAwesome, contentDescription = null, tint = colors.subtle, modifier = Modifier.size(16.dp).padding(top = 2.dp))
         Spacer(Modifier.width(10.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(suggestion.text, fontSize = 13.sp, color = OnBackground, lineHeight = 18.sp)
+            Text(suggestion.text, fontSize = 13.sp, color = colors.onBackground, lineHeight = 18.sp)
             Spacer(Modifier.height(4.dp))
-            Text("↓ ~${suggestion.kwhSaving} kWh · ${suggestion.cluster}", fontSize = 11.sp, color = Subtle)
+            Text("↓ ~${suggestion.kwhSaving} kWh · ${suggestion.cluster}", fontSize = 11.sp, color = colors.subtle)
         }
         Text(
-            "Descartar", fontSize = 12.sp, color = Subtle,
+            "Descartar", fontSize = 12.sp, color = colors.subtle,
             modifier = Modifier.clickable { onDismiss() }
         )
     }
@@ -324,6 +318,7 @@ private fun HomeBottomNavBar(
     onNavInicio: () -> Unit, onNavSenas: () -> Unit,
     onNavDispositivos: () -> Unit, onNavSugerencias: () -> Unit, onNavPerfil: () -> Unit,
 ) {
+    val colors = LocalAppColors.current
     val items = listOf(
         Triple("Inicio",       Icons.Outlined.Home,             onNavInicio),
         Triple("Señas",        Icons.Outlined.PanTool,          onNavSenas),
@@ -331,20 +326,20 @@ private fun HomeBottomNavBar(
         Triple("Sugerencias",  Icons.Outlined.AutoAwesome,      onNavSugerencias),
         Triple("Perfil",       Icons.Outlined.Person,           onNavPerfil),
     )
-    Surface(color = Background, tonalElevation = 0.dp) {
-        HorizontalDivider(color = BorderColor, thickness = 0.5.dp)
+    Surface(color = colors.background, tonalElevation = 0.dp) {
+        HorizontalDivider(color = colors.borderColor, thickness = 0.5.dp)
         Row(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.SpaceAround) {
             items.forEach { (label, icon, action) ->
                 val isSelected = label == selected
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier.clip(RoundedCornerShape(12.dp)).clickable { action() }
-                        .background(if (isSelected) NavSelected else Color.Transparent)
+                        .background(if (isSelected) colors.iconBg else Color.Transparent)
                         .padding(horizontal = 14.dp, vertical = 8.dp)
                 ) {
-                    Icon(icon, contentDescription = label, tint = if (isSelected) OnBackground else Subtle, modifier = Modifier.size(22.dp))
+                    Icon(icon, contentDescription = label, tint = if (isSelected) colors.onBackground else colors.subtle, modifier = Modifier.size(22.dp))
                     Spacer(Modifier.height(2.dp))
-                    Text(label, fontSize = 10.sp, color = if (isSelected) OnBackground else Subtle,
+                    Text(label, fontSize = 10.sp, color = if (isSelected) colors.onBackground else colors.subtle,
                         fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal)
                 }
             }

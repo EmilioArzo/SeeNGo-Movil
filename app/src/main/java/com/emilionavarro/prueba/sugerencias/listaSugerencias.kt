@@ -21,22 +21,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.emilionavarro.prueba.sugerencias.data.network.SuggestionDto
 import com.emilionavarro.prueba.sugerencias.viewmodel.SuggestionsViewModel
+import com.emilionavarro.prueba.ui.theme.AppColors
+import com.emilionavarro.prueba.ui.theme.LocalAppColors
 import java.util.Locale
 
-// ── Color tokens ─────────────────────────────────────────────────────────────
-private val Background   = Color(0xFFEAE7E0)
-private val Surface      = Color(0xFFF2EFEA)
-private val OnBackground = Color(0xFF1C1C1C)
-private val Subtle       = Color(0xFF7A7A7A)
-private val Accent       = Color(0xFF232320)
-private val BorderColor  = Color(0xFFDDDAD3)
-private val NavSelected  = Color(0xFFE4E1D9)
-private val TagBg        = Color(0xFFE4E1D9)
-private val GreenText    = Color(0xFF4A8C62)
-
-private val IconBgGreen  = Color(0xFFD6EAD8)
-private val IconBgOrange = Color(0xFFF5E0C8)
-private val IconBgGray   = Color(0xFFE4E1D9)
+// ── Ya no hay colores fijos: Background, Surface, OnBackground, Subtle, ─────
+// ── Accent, BorderColor, NavSelected, TagBg y GreenText vienen de ───────────
+// ── LocalAppColors. Los colores de las "etiquetas" de categoría (verde, ─────
+// ── naranja, gris) se generan en cardStyles(colors) más abajo, porque son ───
+// ── decorativos y dependen del tema para tener buen contraste. ──────────────
 
 // ── UI model ──────────────────────────────────────────────────────────────────
 data class SuggestionCard(
@@ -51,15 +44,17 @@ data class SuggestionCard(
 )
 
 // El backend no manda un ícono por sugerencia, así que rotamos entre un set fijo.
-private val cardStyles = listOf(
-    Triple(Icons.Outlined.DarkMode, IconBgGreen, Color(0xFF4A8C62)),
-    Triple(Icons.Outlined.WbSunny, IconBgOrange, Color(0xFFD4823A)),
-    Triple(Icons.Outlined.Tv, IconBgGray, OnBackground),
-    Triple(Icons.Outlined.FlashOn, IconBgGreen, Color(0xFF4A8C62)),
+// Es una función (no una `val` de nivel de archivo) porque necesita `colors`
+// del tema actual — antes eran colores fijos, ahora se adaptan a claro/oscuro.
+private fun cardStyles(colors: AppColors) = listOf(
+    Triple(Icons.Outlined.DarkMode, colors.successColor.copy(alpha = 0.18f), colors.successColor),
+    Triple(Icons.Outlined.WbSunny, Color(0xFFD4823A).copy(alpha = 0.18f), Color(0xFFD4823A)),
+    Triple(Icons.Outlined.Tv, colors.iconBg, colors.onBackground),
+    Triple(Icons.Outlined.FlashOn, colors.successColor.copy(alpha = 0.18f), colors.successColor),
 )
 
-private fun SuggestionDto.toCard(index: Int): SuggestionCard {
-    val style = cardStyles[index % cardStyles.size]
+private fun SuggestionDto.toCard(index: Int, colors: AppColors): SuggestionCard {
+    val style = cardStyles(colors)[index % cardStyles(colors).size]
     val kwh = String.format(Locale.getDefault(), "%.1f", projectedKwhSaving)
     return SuggestionCard(
         id = id.orEmpty(),
@@ -86,13 +81,14 @@ fun SuggestionsScreen(
     onNavDispositivos: () -> Unit = {},
     onNavPerfil: () -> Unit = {},
 ) {
+    val colors = LocalAppColors.current   // 👈 nueva línea
     val state = viewModel.uiState
 
     LaunchedEffect(userId) {
         if (userId.isNotBlank()) viewModel.loadSuggestions(userId)
     }
 
-    val cards = state.suggestions.mapIndexed { index, dto -> dto.toCard(index) }
+    val cards = state.suggestions.mapIndexed { index, dto -> dto.toCard(index, colors) }
     val featured = cards.firstOrNull()
     val rest = if (cards.isEmpty()) emptyList() else cards.drop(1)
 
@@ -126,10 +122,11 @@ fun SuggestionsScreenContent(
     onNavDispositivos: () -> Unit = {},
     onNavPerfil: () -> Unit = {},
 ) {
+    val colors = LocalAppColors.current   // 👈 nueva línea
     val totalCount = suggestions.size + if (featured != null) 1 else 0
 
     Scaffold(
-        containerColor = Background,
+        containerColor = colors.background,
         bottomBar = {
             SuggestionsBottomNavBar(
                 selected          = "Sugerencias",
@@ -160,27 +157,27 @@ fun SuggestionsScreenContent(
                         "Sugerencias",
                         fontSize = 28.sp,
                         fontWeight = FontWeight.Bold,
-                        color = OnBackground
+                        color = colors.onBackground
                     )
                     Text(
                         if (totalCount > 0) "$totalCount rutinas pueden ahorrarte energía"
                         else "Aquí verás tus próximas sugerencias",
                         fontSize = 13.sp,
-                        color = Subtle
+                        color = colors.subtle
                     )
                 }
                 Box(
                     modifier = Modifier
                         .size(44.dp)
                         .clip(RoundedCornerShape(14.dp))
-                        .background(Surface)
+                        .background(colors.surface)
                         .clickable { onFilter() },
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         Icons.Outlined.Tune,
                         contentDescription = "Filtrar",
-                        tint = OnBackground,
+                        tint = colors.onBackground,
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -194,7 +191,7 @@ fun SuggestionsScreenContent(
                         modifier = Modifier.fillMaxWidth().padding(vertical = 60.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        CircularProgressIndicator(color = Accent)
+                        CircularProgressIndicator(color = colors.accent)
                     }
                 }
 
@@ -203,17 +200,17 @@ fun SuggestionsScreenContent(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(18.dp))
-                            .background(Surface)
+                            .background(colors.surface)
                             .padding(20.dp)
                     ) {
                         Text(
                             "No pudimos cargar tus sugerencias",
                             fontSize = 14.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = OnBackground
+                            color = colors.onBackground
                         )
                         Spacer(Modifier.height(4.dp))
-                        Text(errorMessage, fontSize = 13.sp, color = Subtle)
+                        Text(errorMessage, fontSize = 13.sp, color = colors.subtle)
                     }
                 }
 
@@ -222,20 +219,20 @@ fun SuggestionsScreenContent(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(18.dp))
-                            .background(Surface)
+                            .background(colors.surface)
                             .padding(20.dp)
                     ) {
                         Text(
                             "Todavía no tenemos sugerencias para ti",
                             fontSize = 14.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = OnBackground
+                            color = colors.onBackground
                         )
                         Spacer(Modifier.height(4.dp))
                         Text(
                             "Sigue usando tus dispositivos; te avisaremos cuando detectemos una oportunidad de ahorro.",
                             fontSize = 13.sp,
-                            color = Subtle
+                            color = colors.subtle
                         )
                     }
                 }
@@ -247,7 +244,7 @@ fun SuggestionsScreenContent(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(20.dp))
-                                .background(Accent)
+                                .background(colors.accent)
                                 .padding(20.dp)
                         ) {
                             Column {
@@ -276,7 +273,7 @@ fun SuggestionsScreenContent(
                                     featured.title,
                                     fontSize = 22.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color.White,
+                                    color = colors.onAccent,
                                     lineHeight = 28.sp
                                 )
 
@@ -299,8 +296,8 @@ fun SuggestionsScreenContent(
                                         onClick = onActivateFeatured,
                                         shape = RoundedCornerShape(12.dp),
                                         colors = ButtonDefaults.buttonColors(
-                                            containerColor = Color.White,
-                                            contentColor   = Accent
+                                            containerColor = colors.onAccent,
+                                            contentColor   = colors.accent
                                         ),
                                         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp)
                                     ) {
@@ -328,7 +325,7 @@ fun SuggestionsScreenContent(
                             fontSize = 10.sp,
                             fontWeight = FontWeight.SemiBold,
                             letterSpacing = 1.sp,
-                            color = Subtle
+                            color = colors.subtle
                         )
 
                         Spacer(Modifier.height(10.dp))
@@ -351,11 +348,12 @@ fun SuggestionsScreenContent(
 // ── Suggestion row card ───────────────────────────────────────────────────────
 @Composable
 private fun SuggestionRow(suggestion: SuggestionCard, onClick: () -> Unit) {
+    val colors = LocalAppColors.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(18.dp))
-            .background(Surface)
+            .background(colors.surface)
             .clickable { onClick() }
             .padding(14.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -382,13 +380,13 @@ private fun SuggestionRow(suggestion: SuggestionCard, onClick: () -> Unit) {
                 suggestion.title,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = OnBackground
+                color = colors.onBackground
             )
             Spacer(Modifier.height(2.dp))
             Text(
                 suggestion.description,
                 fontSize = 12.sp,
-                color = Subtle,
+                color = colors.subtle,
                 lineHeight = 17.sp
             )
             Spacer(Modifier.height(6.dp))
@@ -399,12 +397,12 @@ private fun SuggestionRow(suggestion: SuggestionCard, onClick: () -> Unit) {
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(6.dp))
-                        .background(TagBg)
+                        .background(colors.iconBg)
                         .padding(horizontal = 8.dp, vertical = 3.dp)
                 ) {
-                    Text(suggestion.tag, fontSize = 11.sp, color = OnBackground, fontWeight = FontWeight.Medium)
+                    Text(suggestion.tag, fontSize = 11.sp, color = colors.onBackground, fontWeight = FontWeight.Medium)
                 }
-                Text(suggestion.metric, fontSize = 11.sp, color = GreenText, fontWeight = FontWeight.Medium)
+                Text(suggestion.metric, fontSize = 11.sp, color = colors.successColor, fontWeight = FontWeight.Medium)
             }
         }
 
@@ -413,7 +411,7 @@ private fun SuggestionRow(suggestion: SuggestionCard, onClick: () -> Unit) {
         Icon(
             Icons.Outlined.ChevronRight,
             contentDescription = null,
-            tint = Subtle,
+            tint = colors.subtle,
             modifier = Modifier.size(18.dp)
         )
     }
@@ -429,6 +427,7 @@ private fun SuggestionsBottomNavBar(
     onNavSugerencias: () -> Unit,
     onNavPerfil: () -> Unit,
 ) {
+    val colors = LocalAppColors.current
     val items = listOf(
         Triple("Inicio",       Icons.Outlined.Home,            onNavInicio),
         Triple("Señas",        Icons.Outlined.PanTool,         onNavSenas),
@@ -436,8 +435,8 @@ private fun SuggestionsBottomNavBar(
         Triple("Sugerencias",  Icons.Outlined.AutoAwesome,     onNavSugerencias),
         Triple("Perfil",       Icons.Outlined.Person,          onNavPerfil),
     )
-    Surface(color = Background, tonalElevation = 0.dp) {
-        HorizontalDivider(color = BorderColor, thickness = 0.5.dp)
+    Surface(color = colors.background, tonalElevation = 0.dp) {
+        HorizontalDivider(color = colors.borderColor, thickness = 0.5.dp)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -451,12 +450,12 @@ private fun SuggestionsBottomNavBar(
                     modifier = Modifier
                         .clip(RoundedCornerShape(12.dp))
                         .clickable { action() }
-                        .background(if (isSel) NavSelected else Color.Transparent)
+                        .background(if (isSel) colors.iconBg else Color.Transparent)
                         .padding(horizontal = 14.dp, vertical = 8.dp)
                 ) {
-                    Icon(icon, contentDescription = label, tint = if (isSel) OnBackground else Subtle, modifier = Modifier.size(22.dp))
+                    Icon(icon, contentDescription = label, tint = if (isSel) colors.onBackground else colors.subtle, modifier = Modifier.size(22.dp))
                     Spacer(Modifier.height(2.dp))
-                    Text(label, fontSize = 10.sp, color = if (isSel) OnBackground else Subtle, fontWeight = if (isSel) FontWeight.Medium else FontWeight.Normal)
+                    Text(label, fontSize = 10.sp, color = if (isSel) colors.onBackground else colors.subtle, fontWeight = if (isSel) FontWeight.Medium else FontWeight.Normal)
                 }
             }
         }
@@ -467,11 +466,12 @@ private fun SuggestionsBottomNavBar(
 @Preview(showBackground = true, widthDp = 390, heightDp = 844)
 @Composable
 fun SuggestionsScreenPreview() {
+    val colors = LocalAppColors.current
     val mockFeatured = SuggestionCard(
         id = "1",
         icon = Icons.Outlined.DarkMode,
-        iconBg = IconBgGreen,
-        iconTint = Color(0xFF4A8C62),
+        iconBg = colors.successColor.copy(alpha = 0.18f),
+        iconTint = colors.successColor,
         title = "Apaga el aire 30 min antes de salir",
         description = "Detectamos que sales de casa entre 8:15 y 8:45.",
         tag = "Clima",
@@ -481,7 +481,7 @@ fun SuggestionsScreenPreview() {
         SuggestionCard(
             id = "2",
             icon = Icons.Outlined.WbSunny,
-            iconBg = IconBgOrange,
+            iconBg = Color(0xFFD4823A).copy(alpha = 0.18f),
             iconTint = Color(0xFFD4823A),
             title = "Despertar suave",
             description = "Sube luces y pon tu playlist matutina.",
@@ -491,8 +491,8 @@ fun SuggestionsScreenPreview() {
         SuggestionCard(
             id = "3",
             icon = Icons.Outlined.Tv,
-            iconBg = IconBgGray,
-            iconTint = OnBackground,
+            iconBg = colors.iconBg,
+            iconTint = colors.onBackground,
             title = "Modo cine",
             description = "Atenúa luces de Sala y silencia notificaciones.",
             tag = "Escena",

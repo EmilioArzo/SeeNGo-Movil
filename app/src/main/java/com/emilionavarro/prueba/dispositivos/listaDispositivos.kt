@@ -22,22 +22,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.emilionavarro.prueba.autenticacion.data.local.SessionManager
+import com.emilionavarro.prueba.ui.theme.LocalAppColors
 
-// ── Color tokens ─────────────────────────────────────────────────────────────
-private val Background = Color(0xFFEAE7E0)
-private val Surface = Color(0xFFF2EFEA)
-private val SurfaceCard = Color(0xFFEFECE5)
-private val OnBackground = Color(0xFF1C1C1C)
-private val Subtle = Color(0xFF7A7A7A)
-private val Accent = Color(0xFF232320)
-private val BorderColor = Color(0xFFDDDAD3)
-private val ToggleOn = Color(0xFF232320)
-private val ToggleOff = Color(0xFFCBC8C0)
-private val IconBg = Color(0xFFE4E1D9)
-private val NavSelected = Color(0xFFE4E1D9)
+// ── Colores fijos: solo lo que es marca (Spotify) o realmente decorativo. ────
+// ── Todo lo demás (fondo, texto, bordes, toggles...) viene de LocalAppColors ─
 private val SpotifyGreen = Color(0xFF1DB954)
-private val SpotifyLinkedBg = Color(0xFFD6EAD8)
-private val ErrorRed = Color(0xFFD94F3D)
 
 // ── Data models ───────────────────────────────────────────────────────────────
 data class DeviceItem(
@@ -70,11 +59,12 @@ fun DevicesScreen(
         viewModel(factory = viewModelFactory { DevicesViewModel(userId = userId, session = session) })
     }
 ) {
+    val colors = LocalAppColors.current   // 👈 nueva línea
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
 
     Scaffold(
-        containerColor = Background,
+        containerColor = colors.background,
         bottomBar = {
             BottomNavBar(
                 selected = "Dispositivos",
@@ -101,22 +91,22 @@ fun DevicesScreen(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Column {
-                    Text("Dispositivos", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = OnBackground)
+                    Text("Dispositivos", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = colors.onBackground)
                     val totalDevices = uiState.rooms.sumOf { it.deviceCount }
                     Text(
                         "$totalDevices conectados · ${uiState.rooms.size} cuartos",
                         fontSize = 13.sp,
-                        color = Subtle
+                        color = colors.subtle
                     )
                 }
                 Box(
                     modifier = Modifier
                         .size(44.dp)
-                        .background(Accent, RoundedCornerShape(14.dp))
+                        .background(colors.accent, RoundedCornerShape(14.dp))
                         .clickable { onAddDevice() },
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Outlined.Add, contentDescription = "Agregar", tint = Color.White)
+                    Icon(Icons.Outlined.Add, contentDescription = "Agregar", tint = colors.onAccent)
                 }
             }
 
@@ -135,18 +125,18 @@ fun DevicesScreen(
             when {
                 uiState.isLoading -> {
                     Box(Modifier.fillMaxWidth().padding(vertical = 40.dp), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(color = Accent)
+                        CircularProgressIndicator(color = colors.accent)
                     }
                 }
                 uiState.errorMessage != null -> {
                     Text(
                         "No se pudieron cargar tus dispositivos: ${uiState.errorMessage}",
-                        color = Subtle,
+                        color = colors.subtle,
                         fontSize = 13.sp
                     )
                 }
                 uiState.rooms.isEmpty() -> {
-                    Text("Aún no tienes dispositivos vinculados.", color = Subtle, fontSize = 13.sp)
+                    Text("Aún no tienes dispositivos vinculados.", color = colors.subtle, fontSize = 13.sp)
                 }
                 else -> {
                     uiState.rooms.forEach { room ->
@@ -172,11 +162,16 @@ private fun SpotifyLinkCard(
     errorMessage: String?,
     onLinkClick: () -> Unit
 ) {
+    val colors = LocalAppColors.current
+    // Fondo tintado de verde cuando está vinculado; se calcula a partir del
+    // successColor del tema para que también se vea bien en modo oscuro.
+    val linkedBg = colors.successColor.copy(alpha = 0.18f)
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .background(if (isLinked) SpotifyLinkedBg else Surface)
+            .background(if (isLinked) linkedBg else colors.surface)
             .padding(14.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -197,30 +192,30 @@ private fun SpotifyLinkCard(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     if (isLinked) "Spotify vinculado" else "Conecta tu Spotify",
-                    fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = OnBackground
+                    fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = colors.onBackground
                 )
                 Text(
                     if (isLinked) "Ya puedes controlar tu música con señas" else "Vincula tu cuenta para reproducir música con gestos",
-                    fontSize = 12.sp, color = Subtle
+                    fontSize = 12.sp, color = colors.subtle
                 )
             }
             when {
-                isLinking -> CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = Accent)
-                isLinked -> Icon(Icons.Outlined.CheckCircle, contentDescription = null, tint = Color(0xFF4A8C62), modifier = Modifier.size(20.dp))
+                isLinking -> CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = colors.accent)
+                isLinked -> Icon(Icons.Outlined.CheckCircle, contentDescription = null, tint = colors.successColor, modifier = Modifier.size(20.dp))
                 else -> Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(10.dp))
-                        .background(Accent)
+                        .background(colors.accent)
                         .clickable { onLinkClick() }
                         .padding(horizontal = 14.dp, vertical = 8.dp)
                 ) {
-                    Text("Vincular", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                    Text("Vincular", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = colors.onAccent)
                 }
             }
         }
         if (errorMessage != null) {
             Spacer(Modifier.height(8.dp))
-            Text(errorMessage, fontSize = 12.sp, color = ErrorRed)
+            Text(errorMessage, fontSize = 12.sp, color = colors.errorColor)
         }
     }
 }
@@ -228,13 +223,14 @@ private fun SpotifyLinkCard(
 // ── Room header ───────────────────────────────────────────────────────────────
 @Composable
 private fun RoomHeader(room: RoomSection) {
+    val colors = LocalAppColors.current
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(room.name, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = OnBackground)
-        Text("${room.deviceCount} disp · ${room.kwh} kWh", fontSize = 12.sp, color = Subtle)
+        Text(room.name, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = colors.onBackground)
+        Text("${room.deviceCount} disp · ${room.kwh} kWh", fontSize = 12.sp, color = colors.subtle)
     }
 }
 
@@ -244,16 +240,17 @@ private fun DeviceCard(
     devices: List<DeviceItem>,
     onToggle: (DeviceItem, Boolean) -> Unit
 ) {
+    val colors = LocalAppColors.current
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(18.dp))
-            .background(Surface)
+            .background(colors.surface)
     ) {
         devices.forEachIndexed { index, device ->
             DeviceRow(device = device, onToggle = { onToggle(device, it) })
             if (index < devices.lastIndex) {
-                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = BorderColor, thickness = 0.5.dp)
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = colors.borderColor, thickness = 0.5.dp)
             }
         }
     }
@@ -262,20 +259,21 @@ private fun DeviceCard(
 // ── Single device row ─────────────────────────────────────────────────────────
 @Composable
 private fun DeviceRow(device: DeviceItem, onToggle: (Boolean) -> Unit) {
+    val colors = LocalAppColors.current
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
-            modifier = Modifier.size(40.dp).background(IconBg, RoundedCornerShape(12.dp)),
+            modifier = Modifier.size(40.dp).background(colors.iconBg, RoundedCornerShape(12.dp)),
             contentAlignment = Alignment.Center
         ) {
-            Icon(device.icon, contentDescription = null, tint = OnBackground, modifier = Modifier.size(20.dp))
+            Icon(device.icon, contentDescription = null, tint = colors.onBackground, modifier = Modifier.size(20.dp))
         }
         Spacer(Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(device.name, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = OnBackground, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(device.subtitle, fontSize = 12.sp, color = Subtle, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(device.name, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = colors.onBackground, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(device.subtitle, fontSize = 12.sp, color = colors.subtle, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         Spacer(Modifier.width(8.dp))
         Switch(
@@ -283,10 +281,10 @@ private fun DeviceRow(device: DeviceItem, onToggle: (Boolean) -> Unit) {
             onCheckedChange = onToggle,
             colors = SwitchDefaults.colors(
                 checkedThumbColor = Color.White,
-                checkedTrackColor = ToggleOn,
+                checkedTrackColor = colors.toggleOn,
                 uncheckedThumbColor = Color.White,
-                uncheckedTrackColor = ToggleOff,
-                uncheckedBorderColor = ToggleOff
+                uncheckedTrackColor = colors.toggleOff,
+                uncheckedBorderColor = colors.toggleOff
             )
         )
     }
@@ -302,6 +300,7 @@ private fun BottomNavBar(
     onNavSugerencias: () -> Unit,
     onNavPerfil: () -> Unit,
 ) {
+    val colors = LocalAppColors.current
     val items = listOf(
         Triple("Inicio", Icons.Outlined.Home, onNavInicio),
         Triple("Señas", Icons.Outlined.PanTool, onNavSenas),
@@ -309,8 +308,8 @@ private fun BottomNavBar(
         Triple("Sugerencias", Icons.Outlined.AutoAwesome, onNavSugerencias),
         Triple("Perfil", Icons.Outlined.Person, onNavPerfil),
     )
-    Surface(color = Background, tonalElevation = 0.dp, modifier = Modifier.fillMaxWidth()) {
-        HorizontalDivider(color = BorderColor, thickness = 0.5.dp)
+    Surface(color = colors.background, tonalElevation = 0.dp, modifier = Modifier.fillMaxWidth()) {
+        HorizontalDivider(color = colors.borderColor, thickness = 0.5.dp)
         Row(
             modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
             horizontalArrangement = Arrangement.SpaceAround
@@ -322,12 +321,12 @@ private fun BottomNavBar(
                     modifier = Modifier
                         .clip(RoundedCornerShape(12.dp))
                         .clickable { action() }
-                        .background(if (isSelected) NavSelected else Color.Transparent)
+                        .background(if (isSelected) colors.iconBg else Color.Transparent)
                         .padding(horizontal = 14.dp, vertical = 8.dp)
                 ) {
-                    Icon(icon, contentDescription = label, tint = if (isSelected) OnBackground else Subtle, modifier = Modifier.size(22.dp))
+                    Icon(icon, contentDescription = label, tint = if (isSelected) colors.onBackground else colors.subtle, modifier = Modifier.size(22.dp))
                     Spacer(Modifier.height(2.dp))
-                    Text(label, fontSize = 10.sp, color = if (isSelected) OnBackground else Subtle, fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal)
+                    Text(label, fontSize = 10.sp, color = if (isSelected) colors.onBackground else colors.subtle, fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal)
                 }
             }
         }
