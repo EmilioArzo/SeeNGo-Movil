@@ -10,8 +10,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 object RetrofitClient {
 
     // ⚠️ Emulador Android → 10.0.2.2 | Dispositivo físico → IP local de tu PC
-    private const val BASE_URL = "https://seengo-backend-production.up.railway.app"
-
+    private const val BASE_URL = "https://seengo-backend-production-38f3.up.railway.app"
     private val retrofit: Retrofit by lazy {
         Retrofit.Builder()
             .baseUrl(BASE_URL)

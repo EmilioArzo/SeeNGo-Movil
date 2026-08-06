@@ -86,8 +86,7 @@ interface DashboardApiService {
 
 // ── Cliente Retrofit (mismo patrón que autenticacion/perfil/dispositivos) ────
 object DashboardRetrofitClient {
-    private const val BASE_URL = "https://seengo-backend-production.up.railway.app"
-
+    private const val BASE_URL = "https://seengo-backend-production-38f3.up.railway.app"
     val api: DashboardApiService by lazy {
         Retrofit.Builder()
             .baseUrl(BASE_URL)

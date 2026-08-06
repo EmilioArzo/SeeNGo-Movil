@@ -126,8 +126,7 @@ object ApiClient {
     // Si pruebas en emulador Android contra un backend en tu misma máquina,
     // usa "http://10.0.2.2:PUERTO/". Si es un dispositivo físico en la misma
     // red, usa la IP local de la máquina donde corre el backend.
-    private const val BASE_URL = "https://seengo-backend-production.up.railway.app"
-
+    private const val BASE_URL = "https://seengo-backend-production-38f3.up.railway.app"
     private val okHttpClient = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(15, TimeUnit.SECONDS)
