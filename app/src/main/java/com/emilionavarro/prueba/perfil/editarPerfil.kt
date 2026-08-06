@@ -41,20 +41,12 @@ private val BorderColor  = Color(0xFFD4D0C8)
 private val AvatarBg     = Color(0xFFDDDAD3)
 private val ErrorRed     = Color(0xFFD94F3D)
 
-data class HomeRoom(
-    val name: String,
-    val deviceCount: Int
-)
-
 @Composable
 fun EditProfileScreen(
-    initialName: String     = "",
-    initialEmail: String    = "",
-    initialPhone: String    = "",
-    initialLocation: String = "",
-    initialRooms: List<HomeRoom> = emptyList(),
-    onBack: () -> Unit      = {},
-    onSave: (String, String, String, String, List<HomeRoom>) -> Unit = { _, _, _, _, _ -> },
+    initialName: String  = "",
+    initialEmail: String = "",
+    onBack: () -> Unit    = {},
+    onSave: (name: String, email: String) -> Unit = { _, _ -> },
     onChangePhoto: () -> Unit = {},
 ) {
     val context = LocalContext.current
@@ -62,16 +54,13 @@ fun EditProfileScreen(
     val vm: EditProfileViewModel = viewModel(factory = EditProfileViewModelFactory(session))
     val uiState by vm.uiState.collectAsState()
 
-    // Pre-fill with session data if initialName is blank
-    var name     by remember { mutableStateOf(initialName.ifBlank { session.getUserName() ?: "" }) }
-    var email    by remember { mutableStateOf(initialEmail.ifBlank { session.getUserEmail() ?: "" }) }
-    var phone    by remember { mutableStateOf(initialPhone) }
-    var location by remember { mutableStateOf(initialLocation) }
-    val rooms    = remember { mutableStateListOf(*initialRooms.toTypedArray()) }
+    // Pre-fill con datos de sesión si initialName viene vacío
+    var name  by remember { mutableStateOf(initialName.ifBlank { session.getUserName() ?: "" }) }
+    var email by remember { mutableStateOf(initialEmail.ifBlank { session.getUserEmail() ?: "" }) }
 
     val initials = name.split(" ").take(2).joinToString("") { it.firstOrNull()?.uppercase() ?: "" }
 
-    // Navigate back on success
+    // Navega hacia atrás al guardar con éxito
     LaunchedEffect(uiState) {
         if (uiState is EditProfileUiState.Success) {
             vm.resetState()
@@ -134,7 +123,7 @@ fun EditProfileScreen(
                 Spacer(Modifier.height(16.dp))
             }
 
-            // Fields
+            // Campos: solo nombre y correo
             FieldLabel("NOMBRE")
             Spacer(Modifier.height(6.dp))
             StyledTextField(name, { name = it; if (uiState is EditProfileUiState.Error) vm.resetState() }, { Icon(Icons.Outlined.Person, null, tint = Subtle) })
@@ -144,44 +133,12 @@ fun EditProfileScreen(
             FieldLabel("CORREO")
             Spacer(Modifier.height(6.dp))
             StyledTextField(email, { email = it; if (uiState is EditProfileUiState.Error) vm.resetState() }, { Icon(Icons.Outlined.Email, null, tint = Subtle) }, KeyboardType.Email)
-
-            Spacer(Modifier.height(14.dp))
-
-            FieldLabel("TELÉFONO")
-            Spacer(Modifier.height(6.dp))
-            StyledTextField(phone, { phone = it }, { Icon(Icons.Outlined.Phone, null, tint = Subtle) }, KeyboardType.Phone)
-
-            Spacer(Modifier.height(14.dp))
-
-            FieldLabel("UBICACIÓN DEL HOGAR")
-            Spacer(Modifier.height(6.dp))
-            StyledTextField(location, { location = it }, { Icon(Icons.Outlined.LocationOn, null, tint = Subtle) })
-
-            Spacer(Modifier.height(6.dp))
-
-            FieldLabel("CUARTOS DEL HOGAR")
-            Spacer(Modifier.height(8.dp))
-
-            Column(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(Surface)) {
-                rooms.forEachIndexed { index, room ->
-                    RoomRow(room = room, onEdit = {})
-                    if (index < rooms.lastIndex) HorizontalDivider(modifier = Modifier.padding(horizontal = 14.dp), color = BorderColor, thickness = 0.5.dp)
-                }
-                HorizontalDivider(modifier = Modifier.padding(horizontal = 14.dp), color = BorderColor, thickness = 0.5.dp)
-                Row(
-                    modifier = Modifier.fillMaxWidth().clickable { rooms.add(HomeRoom("Nuevo cuarto", 0)) }.padding(horizontal = 14.dp, vertical = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Icon(Icons.Outlined.Add, null, tint = Subtle, modifier = Modifier.size(18.dp))
-                    Text("Agregar cuarto", fontSize = 14.sp, color = Subtle)
-                }
-            }
         }
 
         // Save button
         Box(modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().background(Background).padding(horizontal = 24.dp, vertical = 16.dp)) {
             Button(
-                onClick  = { vm.saveProfile(name, email, phone) },
+                onClick  = { vm.saveProfile(name, email, phone = "") },
                 modifier = Modifier.fillMaxWidth().height(54.dp),
                 shape    = RoundedCornerShape(14.dp),
                 colors   = ButtonDefaults.buttonColors(containerColor = Accent),
@@ -190,18 +147,6 @@ fun EditProfileScreen(
                 Text("Guardar cambios", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
             }
         }
-    }
-}
-
-@Composable
-private fun RoomRow(room: HomeRoom, onEdit: () -> Unit) {
-    Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 13.dp), verticalAlignment = Alignment.CenterVertically) {
-        Icon(Icons.Outlined.Home, null, tint = Subtle, modifier = Modifier.size(18.dp))
-        Spacer(Modifier.width(12.dp))
-        Text(room.name, fontSize = 14.sp, color = OnBackground, modifier = Modifier.weight(1f))
-        Text("${room.deviceCount} disp.", fontSize = 12.sp, color = Subtle)
-        Spacer(Modifier.width(10.dp))
-        Icon(Icons.Outlined.Edit, null, tint = Subtle, modifier = Modifier.size(16.dp).clickable { onEdit() })
     }
 }
 

@@ -13,6 +13,11 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import kotlinx.coroutines.delay
 
+import androidx.compose.runtime.collectAsState
+import com.emilionavarro.prueba.perfil.data.AppPreferences
+import com.emilionavarro.prueba.perfil.data.AppSettings
+import com.emilionavarro.prueba.ui.theme.PruebaTheme
+
 import android.content.Intent
 import com.emilionavarro.prueba.dispositivos.data.spotify.SpotifyAuthBridge
 import com.emilionavarro.prueba.dispositivos.viewModelFactory
@@ -34,7 +39,6 @@ import com.emilionavarro.prueba.inicio.DeviceDetailSkeleton
 import com.emilionavarro.prueba.inicio.DevicesScreenSkeleton
 import com.emilionavarro.prueba.inicio.HomeScreenSkeleton
 import com.emilionavarro.prueba.perfil.EditProfileScreen
-import com.emilionavarro.prueba.perfil.HomeRoom
 import com.emilionavarro.prueba.perfil.PreferencesScreen
 import com.emilionavarro.prueba.perfil.ProfileScreen
 import com.emilionavarro.prueba.perfil.SettingsScreen
@@ -56,16 +60,22 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        SpotifyAuthBridge.handleIntent(intent) // por si llega "en frío"
+        SpotifyAuthBridge.handleIntent(intent)
         setContent {
-            val navController = rememberNavController()
-            AppNavHost(navController = navController)
+            val context = LocalContext.current
+            val prefs = remember { AppPreferences(context) }
+            val settings by prefs.settingsFlow.collectAsState(initial = AppSettings())
+
+            PruebaTheme(themeMode = settings.theme) {
+                val navController = rememberNavController()
+                AppNavHost(navController = navController)
+            }
         }
     }
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        SpotifyAuthBridge.handleIntent(intent) // aquí llega el redirect normal desde el navegador
+        SpotifyAuthBridge.handleIntent(intent)
     }
 }
 
@@ -290,12 +300,9 @@ fun AppNavHost(navController: NavHostController) {
         }
 
         composable(Routes.PROFILE) {
-            // ProfileScreen uses its own SessionManager + ProfileViewModel internally
-            // GET /api/users/{id} is called automatically on enter
             ProfileScreen(
                 onEdit   = { navController.navigate(Routes.EDIT_PROFILE) },
                 onLogout = {
-                    // session.clearSession() is called inside ProfileScreen
                     navController.navigate(Routes.LOGIN) {
                         popUpTo(0) { inclusive = true }
                     }
@@ -303,7 +310,8 @@ fun AppNavHost(navController: NavHostController) {
                 onNavInicio       = { navController.navigate(Routes.HOME) },
                 onNavSenas        = { navController.navigate(Routes.GESTURES) },
                 onNavDispositivos = { navController.navigate(Routes.DEVICES) },
-                onNavSugerencias  = { navController.navigate(Routes.SUGGESTIONS) }
+                onNavSugerencias  = { navController.navigate(Routes.SUGGESTIONS) },
+                onNavPreferences  = { navController.navigate(Routes.PREFERENCES) }
             )
         }
 
@@ -434,7 +442,7 @@ fun AppNavHost(navController: NavHostController) {
         composable(Routes.EDIT_PROFILE) {
             EditProfileScreen(
                 onBack = { navController.popBackStack() },
-                onSave = { _: String, _: String, _: String, _: String, _: List<HomeRoom> ->
+                onSave = { _: String, _: String ->
                     navController.popBackStack()
                 },
             )

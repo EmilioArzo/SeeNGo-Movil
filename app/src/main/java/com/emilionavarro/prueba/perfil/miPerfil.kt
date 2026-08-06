@@ -49,6 +49,7 @@ fun ProfileScreen(
     onNavSenas: () -> Unit        = {},
     onNavDispositivos: () -> Unit = {},
     onNavSugerencias: () -> Unit  = {},
+    onNavPreferences: () -> Unit  = {},
 ) {
     val context = LocalContext.current
     val session = remember { SessionManager(context) }
@@ -125,22 +126,20 @@ fun ProfileScreen(
                         Column {
                             Text(profile.name,  fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = OnBackground)
                             Text(profile.email, fontSize = 12.sp, color = Subtle)
-                            Spacer(Modifier.height(6.dp))
-                            if (!profile.phone.isNullOrBlank()) {
-                                Box(
-                                    modifier = Modifier.clip(RoundedCornerShape(20.dp)).background(AvatarBg).padding(horizontal = 10.dp, vertical = 3.dp)
-                                ) {
-                                    Text(profile.phone, fontSize = 11.sp, color = OnBackground)
-                                }
-                            }
                         }
                     }
 
                     Spacer(Modifier.height(12.dp))
 
-                    // Stats
+
+                    // Stats — Señas/Dispositivos desde GET /api/gestures y /api/devices,
+                    // kWh desde GET /api/analytics/consumption/summary (mes en curso)
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        listOf("5" to "Señas", "7" to "Dispositivos", "18%" to "Ahorro").forEach { (v, l) ->
+                        listOf(
+                            state.gestureCount.toString() to "Señas",
+                            state.deviceCount.toString() to "Dispositivos",
+                            String.format("%.1f", state.totalKwh) to "kWh (mes)"
+                        ).forEach { (v, l) ->
                             Column(
                                 modifier = Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).background(Surface).padding(vertical = 14.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally
@@ -158,10 +157,6 @@ fun ProfileScreen(
                     Spacer(Modifier.height(8.dp))
                     SettingsCard {
                         SettingsRow(Icons.Outlined.AccountCircle, "Editar perfil", onClick = onEdit)
-                        RowDivider()
-                        SettingsRow(Icons.Outlined.Shield, "Seguridad", trailing = "2FA activado")
-                        RowDivider()
-                        SettingsRow(Icons.Outlined.NotificationsNone, "Notificaciones", trailing = "Todas")
                     }
 
                     Spacer(Modifier.height(20.dp))
@@ -170,11 +165,7 @@ fun ProfileScreen(
                     SectionLabel("PREFERENCIAS")
                     Spacer(Modifier.height(8.dp))
                     SettingsCard {
-                        SettingsRow(Icons.Outlined.Translate, "Idioma", trailing = "Español")
-                        RowDivider()
-                        SettingsRow(Icons.Outlined.DarkMode, "Tema", trailing = "Cálido · Claro")
-                        RowDivider()
-                        SettingsRow(Icons.Outlined.CameraAlt, "Cámara del dispositivo", trailing = "Vinculada")
+                        SettingsRow(Icons.Outlined.DarkMode, "Tema", trailing = "Cálido · Claro", onClick = onNavPreferences)
                     }
 
                     Spacer(Modifier.height(20.dp))
@@ -208,11 +199,6 @@ private fun SectionLabel(text: String) {
 @Composable
 private fun SettingsCard(content: @Composable ColumnScope.() -> Unit) {
     Column(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(Surface), content = content)
-}
-
-@Composable
-private fun RowDivider() {
-    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = BorderColor, thickness = 0.5.dp)
 }
 
 @Composable

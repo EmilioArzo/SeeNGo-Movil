@@ -31,10 +31,6 @@ private val Surface         = Color(0xFFF2EFEA)
 private val OnBackground    = Color(0xFF1C1C1C)
 private val Subtle          = Color(0xFF7A7A7A)
 private val BorderColor     = Color(0xFFDDDAD3)
-private val IconBg          = Color(0xFFE4E1D9)
-private val ToggleOn        = Color(0xFF232320)
-private val ToggleOff       = Color(0xFFCBC8C0)
-private val SegmentSelected = Color(0xFF232320)
 private val ThemeCardBorder = Color(0xFF232320)
 
 @Composable
@@ -70,7 +66,6 @@ fun PreferencesScreen(onBack: () -> Unit = {}) {
         SectionLabel("APARIENCIA")
         Spacer(Modifier.height(8.dp))
 
-        // Theme picker
         Column(
             modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(Surface).padding(14.dp)
         ) {
@@ -88,92 +83,6 @@ fun PreferencesScreen(onBack: () -> Unit = {}) {
                     )
                 }
             }
-        }
-
-        Spacer(Modifier.height(10.dp))
-
-        // Language + other nav rows
-        Column(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(Surface)) {
-            // Language selector as inline chips
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(modifier = Modifier.size(34.dp).background(IconBg, RoundedCornerShape(10.dp)), contentAlignment = Alignment.Center) {
-                    Icon(Icons.Outlined.Translate, null, tint = OnBackground, modifier = Modifier.size(17.dp))
-                }
-                Spacer(Modifier.width(12.dp))
-                Text("Idioma", fontSize = 14.sp, color = OnBackground, modifier = Modifier.weight(1f))
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    listOf("Español", "English").forEach { lang ->
-                        val isSel = state.language == lang
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(if (isSel) SegmentSelected else Color(0xFFE0DDD6))
-                                .clickable { vm.setLanguage(lang) }
-                                .padding(horizontal = 10.dp, vertical = 5.dp)
-                        ) {
-                            Text(lang, fontSize = 12.sp, fontWeight = if (isSel) FontWeight.SemiBold else FontWeight.Normal,
-                                color = if (isSel) Color.White else Subtle)
-                        }
-                    }
-                }
-            }
-        }
-
-        Spacer(Modifier.height(20.dp))
-
-        // ══ UNIDADES DE MEDIDA ════════════════════════════════════════════════
-        SectionLabel("UNIDADES DE MEDIDA")
-        Spacer(Modifier.height(8.dp))
-
-        Column(
-            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(Surface)
-                .padding(horizontal = 14.dp, vertical = 14.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            // Energy
-            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("Energía", fontSize = 14.sp, color = OnBackground, modifier = Modifier.weight(1f))
-                SegmentedControl(
-                    options  = listOf("kWh", "Wh", "J"),
-                    selected = state.energyUnit,
-                    onSelect = { vm.setEnergyUnit(it) }
-                )
-            }
-            HorizontalDivider(color = BorderColor, thickness = 0.5.dp)
-            // Temperature
-            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("Temperatura", fontSize = 14.sp, color = OnBackground, modifier = Modifier.weight(1f))
-                SegmentedControl(
-                    options  = listOf("°C", "°F"),
-                    selected = state.tempUnit,
-                    onSelect = { vm.setTempUnit(it) }
-                )
-            }
-        }
-
-        Spacer(Modifier.height(20.dp))
-
-        // ══ ACCESIBILIDAD ════════════════════════════════════════════════════
-        SectionLabel("ACCESIBILIDAD")
-        Spacer(Modifier.height(8.dp))
-
-        Column(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(Surface)) {
-            PrefToggleRow(
-                icon     = Icons.Outlined.Contrast,
-                label    = "Alto contraste",
-                isOn     = state.highContrast,
-                onToggle = { vm.setHighContrast(it) }
-            )
-            HorizontalDivider(modifier = Modifier.padding(horizontal = 14.dp), color = BorderColor, thickness = 0.5.dp)
-            PrefToggleRow(
-                icon     = null,
-                label    = "Vibración al detectar seña",
-                isOn     = state.vibration,
-                onToggle = { vm.setVibration(it) }
-            )
         }
     }
 }
@@ -210,56 +119,6 @@ private fun ThemeCard(
         }
         Spacer(Modifier.height(6.dp))
         Text(label, fontSize = 12.sp, fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal, color = OnBackground)
-    }
-}
-
-// ── Segmented control ──────────────────────────────────────────────────────────
-@Composable
-private fun SegmentedControl(options: List<String>, selected: String, onSelect: (String) -> Unit) {
-    Row(
-        modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(Color(0xFFE0DDD6)).padding(2.dp),
-        horizontalArrangement = Arrangement.spacedBy(2.dp)
-    ) {
-        options.forEach { option ->
-            val isSel = option == selected
-            Box(
-                modifier = Modifier.clip(RoundedCornerShape(8.dp))
-                    .background(if (isSel) SegmentSelected else Color.Transparent)
-                    .clickable { onSelect(option) }
-                    .padding(horizontal = 12.dp, vertical = 5.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(option, fontSize = 13.sp, fontWeight = if (isSel) FontWeight.SemiBold else FontWeight.Normal,
-                    color = if (isSel) Color.White else Subtle)
-            }
-        }
-    }
-}
-
-// ── Toggle row ─────────────────────────────────────────────────────────────────
-@Composable
-private fun PrefToggleRow(
-    icon: androidx.compose.ui.graphics.vector.ImageVector?,
-    label: String, isOn: Boolean, onToggle: (Boolean) -> Unit,
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        if (icon != null) {
-            Box(modifier = Modifier.size(34.dp).background(IconBg, RoundedCornerShape(10.dp)), contentAlignment = Alignment.Center) {
-                Icon(icon, null, tint = OnBackground, modifier = Modifier.size(17.dp))
-            }
-            Spacer(Modifier.width(12.dp))
-        }
-        Text(label, fontSize = 14.sp, color = OnBackground, modifier = Modifier.weight(1f))
-        Switch(
-            checked = isOn, onCheckedChange = onToggle,
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = Color.White, checkedTrackColor = ToggleOn,
-                uncheckedThumbColor = Color.White, uncheckedTrackColor = ToggleOff, uncheckedBorderColor = ToggleOff
-            )
-        )
     }
 }
 
